@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grafik TOEFL</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h2>Grafik Skor TOEFL</h2>
+
+<canvas id="chart"></canvas>
+
+<script>
+fetch('http://127.0.0.1:8000/api/tes/grafik')
+.then(res => res.json())
+.then(data => {
+    new Chart(document.getElementById('chart'), {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'Skor TOEFL',
+                    data: data.data
+                },
+                {
+                    label: 'Target',
+                    data: data.data.map(() => 500),
+                    borderDash: [5,5]
+                }
+            ]
+        }
+    });
+});
+</script>
+
+</body>
+</html>

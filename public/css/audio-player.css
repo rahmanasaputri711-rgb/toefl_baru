@@ -1,0 +1,163 @@
+/* ═══════════════════════════════════════════════════════════════
+   TOEFL Audio Player — mirip gambar referensi
+   Dark bar: background #4a4a4a, progress biru, tombol play segitiga
+   ═══════════════════════════════════════════════════════════════ */
+
+.toefl-audio-wrap {
+  margin-bottom: 14px;
+}
+
+.tap-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tap-once-badge {
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+/* ── Bar utama ── */
+.tap-bar {
+  background: #4a4a4a;
+  border-radius: 5px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.45);
+  border: 1px solid #333;
+  max-width: 520px;
+  user-select: none;
+}
+
+/* ── Play button ── */
+.tap-play-btn {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity .15s;
+  padding: 0;
+}
+.tap-play-btn:hover:not(:disabled) { opacity: .75; }
+.tap-play-btn:disabled {
+  cursor: not-allowed;
+  opacity: .35;
+}
+
+/* triangle = play icon */
+.tap-play-triangle {
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 8px 0 8px 13px;
+  border-color: transparent transparent transparent #d0d0d0;
+}
+
+/* pause bars */
+.tap-play-btn.playing .tap-play-triangle {
+  border: none;
+  width: 11px;
+  height: 14px;
+  background:
+    linear-gradient(#d0d0d0 0 0) left/3px 100%,
+    linear-gradient(#d0d0d0 0 0) right/3px 100%;
+  background-repeat: no-repeat;
+}
+
+/* ── Track ── */
+.tap-track-outer {
+  flex: 1;
+  position: relative;
+  height: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.tap-track-inner {
+  position: absolute;
+  inset: 5px 0;
+  background: #2a2a2a;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.5);
+}
+.tap-track-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4a90e2, #2a70c2);
+  border-radius: 3px;
+  transition: width .25s linear;
+  min-width: 0;
+}
+.tap-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) translateX(-50%);
+  width: 11px;
+  height: 11px;
+  background: #c8c8c8;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,.6);
+  left: 0%;
+}
+
+/* disabled track */
+.tap-bar.no-interact .tap-track-outer { cursor: default; pointer-events: none; }
+
+/* ── Time ── */
+.tap-time {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11.5px;
+  color: #b0b0b0;
+  white-space: nowrap;
+  min-width: 38px;
+  text-align: right;
+}
+
+/* ── Volume button ── */
+.tap-vol-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tap-vol-icon {
+  font-size: 13px;
+  color: #a0a0a0;
+  transition: color .15s;
+}
+.tap-vol-btn:hover .tap-vol-icon { color: #d0d0d0; }
+
+/* ── Status text ── */
+.tap-status {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+  font-style: italic;
+  max-width: 520px;
+}
+.tap-status.playing  { color: #4ade80; }
+.tap-status.done     { color: #f87171; }
+.tap-status.error    { color: #f87171; font-style: normal; }

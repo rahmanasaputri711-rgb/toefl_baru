@@ -1,0 +1,589 @@
+<?php
+namespace App\Http\Controllers\User;
+
+use App\Http\Controllers\Controller;
+use App\Models\BankSoal;
+use App\Models\PendaftaranTes;
+use App\Models\PercobaanTes;
+use App\Models\SesiTes;
+use App\Models\SesiTesSoal;
+use App\Models\JawabanMahasiswa;
+use App\Models\GrafikProgress;
+use App\Models\AktivitasLog;
+use App\Models\Notifikasi;
+use App\Services\FisherYatesService;
+use Illuminate\Http\Request;
+
+class TesController extends Controller
+{
+    // ─── DURASI PER SECTION (detik) — sesuai standar TOEFL ITP ─────
+    const DURASI = [
+        'listening' => 2100,  // 35 menit
+        'structure' => 1500,  // 25 menit
+        'reading'   => 3300,  // 55 menit
+    ];
+
+    // Jeda jawaban per soal Listening (detik) setelah audio selesai
+    const LISTEN_ANSWER_SEC = 12;
+
+    // ─── HALAMAN TES FULL ────────────────────────────────────────────
+    public function full()
+    {
+        $userId      = auth()->id();
+        $pendaftaran = PendaftaranTes::with(['sesiTes'])
+            ->where('user_id', $userId)
+            ->whereIn('status_pendaftaran', ['menunggu','dikonfirmasi','ditolak'])
+            ->latest()->first();
+
+        $sudahSelesai = PercobaanTes::where('user_id', $userId)
+            ->where('status', 'selesai')->exists();
+
+        $sesiAktif = null;
+        if ($pendaftaran && $pendaftaran->status_pendaftaran === 'dikonfirmasi') {
+            $sesiAktif = SesiTes::where('id', $pendaftaran->sesi_id)
+                ->where('is_aktif', 1)->first();
+        }
+
+        $sesiList = SesiTes::where('tipe_tes', 'full')
+            ->where('is_published', 1)
+            ->whereRaw('peserta_terdaftar < kuota_peserta')
+            ->orderBy('waktu_mulai')->get();
+
+        return view('user.tes.full', compact('pendaftaran','sesiAktif','sesiList','sudahSelesai'));
+    }
+
+    // ─── MULAI TES FULL ──────────────────────────────────────────────
+    public function mulai(Request $request)
+    {
+        $userId  = auth()->id();
+        $sesiId  = $request->sesi_id;
+        $sesi    = SesiTes::where('id', $sesiId)->where('is_aktif', 1)->firstOrFail();
+
+        $pendaftaran = PendaftaranTes::where('user_id', $userId)
+            ->where('sesi_id', $sesiId)
+            ->where('status_pendaftaran', 'dikonfirmasi')->first();
+        if (!$pendaftaran) return back()->with('error','Pendaftaran belum dikonfirmasi admin.');
+
+        // Cek akun aktif (verifikasi admin untuk tes full)
+        if (!auth()->user()->is_active) {
+            return back()->with('error','Akun Anda belum diaktifkan admin untuk Tes Full.');
+        }
+
+        // Resume jika ada percobaan berlangsung
+        $existing = PercobaanTes::where('user_id', $userId)
+            ->where('sesi_id', $sesiId)
+            ->where('status', 'berlangsung')->first();
+        if ($existing) {
+            return redirect()->route('user.tes.ujian', [
+                'percobaan_id' => $existing->id,
+                'section'      => $existing->current_section ?? 'listening',
+            ]);
+        }
+
+        $percobaan = PercobaanTes::create([
+            'user_id'      => $userId,
+            'sesi_id'      => $sesiId,
+            'waktu_mulai'  => now(),
+            'status'       => 'berlangsung',
+            'ip_address'   => $request->ip(),
+            'browser_info' => substr($request->userAgent(), 0, 255),
+        ]);
+
+        $this->initJawaban($percobaan, 'listening');
+
+        return redirect()->route('user.tes.ujian', [
+            'percobaan_id' => $percobaan->id,
+            'section'      => 'listening',
+        ]);
+    }
+
+    // ─── HALAMAN UJIAN ───────────────────────────────────────────────
+    public function ujian(Request $request)
+    {
+        $userId      = auth()->id();
+        $percobaanId = $request->percobaan_id;
+        $section     = $request->section ?? 'listening';
+
+        $percobaan = PercobaanTes::with('sesiTes')
+            ->where('id', $percobaanId)
+            ->where('user_id', $userId)
+            ->where('status', 'berlangsung')->firstOrFail();
+
+        $sectionNum  = ['listening' => 1, 'structure' => 2, 'reading' => 3];
+        $durasiDetik = self::DURASI[$section] ?? 2100;
+
+        // Soal sudah diacak Fisher-Yates saat sesi dibuat (di SesiTesController)
+        $soalList = SesiTesSoal::with('soal')
+            ->where('sesi_id', $percobaan->sesi_id)
+            ->where('bagian', $section)
+            ->orderBy('urutan_acak')
+            ->get()
+            ->filter(fn($s) => $s->soal && $s->soal->pertanyaan);
+
+        // Resolve audio URLs
+        $soalList->each(function($s) {
+            if ($s->soal && $s->soal->audio_url) {
+                $s->soal->audio_url_resolved = \App\Services\AudioService::resolveUrl($s->soal->audio_url);
+            }
+        });
+
+        $pendaftaran = PendaftaranTes::where('user_id', $userId)
+            ->where('sesi_id', $percobaan->sesi_id)->first();
+
+        // Jawaban yang sudah tersimpan (untuk resume)
+        $jawabanTersimpan = JawabanMahasiswa::where('percobaan_id', $percobaanId)
+            ->whereHas('soal', fn($q) => $q->where('kategori', $section))
+            ->pluck('jawaban_dipilih', 'soal_id')
+            ->toArray();
+
+        $currentSection = $section;
+
+        return view('user.tes.ujian', compact(
+            'percobaan','soalList','currentSection',
+            'sectionNum','durasiDetik','pendaftaran','jawabanTersimpan'
+        ));
+    }
+
+    // ─── AUTOSAVE JAWABAN (per soal, dipanggil saat radio diklik) ───
+    public function saveJawaban(Request $request)
+    {
+        $percobaanId = $request->percobaan_id;
+        $soalId      = $request->soal_id;
+        $jawaban     = $request->jawaban;
+
+        $percobaan = PercobaanTes::where('id', $percobaanId)
+            ->where('user_id', auth()->id())
+            ->where('status', 'berlangsung')->first();
+
+        if (!$percobaan) return response()->json(['ok' => false, 'msg' => 'Percobaan tidak valid'], 422);
+
+        $soal = BankSoal::find($soalId);
+        if (!$soal) return response()->json(['ok' => false, 'msg' => 'Soal tidak ditemukan'], 422);
+
+        $isBenar = ($soal->jawaban_benar === $jawaban) ? 1 : 0;
+
+        JawabanMahasiswa::updateOrCreate(
+            ['percobaan_id' => $percobaanId, 'soal_id' => $soalId],
+            [
+                'jawaban_dipilih' => $jawaban,
+                'is_benar'        => $isBenar,
+                'status_soal'     => $request->status_soal ?? 'dijawab',
+                'nomor_soal'      => $request->nomor_soal ?? 0,
+                'waktu_dijawab'   => now(),
+            ]
+        );
+
+        // Update last_autosave_at
+        $percobaan->update(['last_autosave_at' => now()]);
+
+        return response()->json(['ok' => true, 'is_benar' => $isBenar]);
+    }
+
+    // ─── AUTOSAVE PING (keepalive) ───────────────────────────────────
+    public function autosave(Request $request)
+    {
+        PercobaanTes::where('id', $request->percobaan_id)
+            ->where('user_id', auth()->id())
+            ->update(['last_autosave_at' => now()]);
+        return response()->json(['ok' => true]);
+    }
+
+    // ─── SUBMIT SECTION ──────────────────────────────────────────────
+    public function submit(Request $request)
+    {
+        $userId      = auth()->id();
+        $percobaanId = $request->percobaan_id;
+        $section     = $request->section;
+
+        $percobaan = PercobaanTes::where('id', $percobaanId)
+            ->where('user_id', $userId)
+            ->where('status', 'berlangsung')->firstOrFail();
+
+        // Hitung skor dari jawaban yang SUDAH tersimpan (bukan dari POST)
+        $jawabanSection = JawabanMahasiswa::where('percobaan_id', $percobaanId)
+            ->whereHas('soal', fn($q) => $q->where('kategori', $section))
+            ->where('is_benar', 1)->count();
+
+        $skorSection = $this->hitungSkorSection($section, $jawabanSection);
+
+        $urutan = ['listening' => 'structure', 'structure' => 'reading', 'reading' => null];
+        $next   = $urutan[$section] ?? null;
+
+        $field = 'skor_' . $section;
+        $percobaan->update([$field => $skorSection, 'last_autosave_at' => now()]);
+
+        if ($next) {
+            $this->initJawaban($percobaan, $next);
+            return redirect()->route('user.tes.ujian', [
+                'percobaan_id' => $percobaanId,
+                'section'      => $next,
+            ]);
+        }
+
+        return $this->selesaikan($percobaan);
+    }
+
+    // ─── SELESAIKAN TES ──────────────────────────────────────────────
+    private function selesaikan(PercobaanTes $percobaan)
+    {
+        $userId = $percobaan->user_id;
+
+        $semuaJawaban = JawabanMahasiswa::where('percobaan_id', $percobaan->id)
+            ->with('soal')->get();
+
+        $benarL = $semuaJawaban->filter(fn($j) => $j->soal?->kategori === 'listening' && $j->is_benar)->count();
+        $benarS = $semuaJawaban->filter(fn($j) => $j->soal?->kategori === 'structure' && $j->is_benar)->count();
+        $benarR = $semuaJawaban->filter(fn($j) => $j->soal?->kategori === 'reading'   && $j->is_benar)->count();
+
+        $sL    = $this->konversiListening($benarL);
+        $sS    = $this->konversiStructure($benarS);
+        $sR    = $this->konversiReading($benarR);
+        $total = max(310, min(677, (int) round(($sL + $sS + $sR) * (10/3))));
+
+        $benarTotal = $benarL + $benarS + $benarR;
+        $totalSoal  = $semuaJawaban->count();
+        $salah      = $semuaJawaban->where('is_benar', 0)->count();
+
+        // Simpan skor dan tandai selesai (atomic)
+        $percobaan->fill([
+            'waktu_selesai'       => now(),
+            'skor_listening'      => $sL,
+            'skor_structure'      => $sS,
+            'skor_reading'        => $sR,
+            'skor_total'          => $total,
+            'jumlah_benar'        => $benarTotal,
+            'jumlah_salah'        => $salah,
+            'jumlah_tidak_dijawab'=> max(0, $totalSoal - $benarTotal - $salah),
+            'status'              => 'selesai',
+        ])->save();
+
+        // Refresh dari DB untuk memastikan status 'selesai' sudah tersimpan
+        $percobaan->refresh();
+
+        GrafikProgress::create([
+            'user_id'             => $userId,
+            'sumber'              => 'tes_full',
+            'sumber_id'           => $percobaan->id,
+            'tanggal'             => today(),
+            'skor_listening'      => $sL,
+            'skor_structure'      => $sS,
+            'skor_reading'        => $sR,
+            'skor_toefl_estimasi' => $total,
+        ]);
+
+        Notifikasi::create([
+            'user_id'      => $userId,
+            'judul'        => 'Hasil Tes TOEFL ITP Tersedia',
+            'pesan'        => "Tes Anda telah selesai. Skor TOEFL ITP: {$total}",
+            'tipe'         => 'hasil',
+            'is_important' => 1,
+        ]);
+
+        return redirect()->route('user.hasil.detail', $percobaan->id)
+            ->with('success', "Tes selesai! Skor TOEFL ITP Anda: {$total}");
+    }
+
+    // ─── CATAT PELANGGARAN ───────────────────────────────────────────
+    public function catatPelanggaran(Request $request)
+    {
+        $percobaan = PercobaanTes::find($request->percobaan_id);
+
+        // Abaikan jika tidak valid atau tes sudah selesai/dibatalkan
+        if (!$percobaan) return response()->json(['ok' => false], 204);
+        if (in_array($percobaan->status, ['selesai','dibatalkan','expired'])) {
+            return response()->json(['ok' => false, 'msg' => 'tes sudah selesai'], 200);
+        }
+        // Pastikan pelanggaran dari user yang benar
+        if ($percobaan->user_id !== auth()->id()) {
+            return response()->json(['ok' => false], 403);
+        }
+
+        $percobaan->increment('jumlah_pelanggaran');
+
+        AktivitasLog::create([
+            'user_id'       => auth()->id(),
+            'percobaan_id'  => $request->percobaan_id,
+            'tipe_aksi'     => $request->tipe_aksi ?? 'pelanggaran',
+            'detail'        => 'Terdeteksi: ' . ($request->tipe_aksi ?? '-'),
+            'pelanggaran_ke'=> $percobaan->jumlah_pelanggaran,
+            'ip_address'    => $request->ip(),
+        ]);
+
+        if ($percobaan->jumlah_pelanggaran >= 3) {
+            auth()->user()->update(['is_active' => 0]);
+            $percobaan->update(['status' => 'dibatalkan', 'status_sanksi' => 'diblokir_pelanggaran']);
+            Notifikasi::create([
+                'user_id'      => auth()->id(),
+                'judul'        => 'Akun Dinonaktifkan',
+                'pesan'        => 'Akun Anda dinonaktifkan karena 3x pelanggaran tes.',
+                'tipe'         => 'sanksi',
+                'is_important' => 1,
+            ]);
+        }
+
+        return response()->json(['pelanggaran_ke' => $percobaan->jumlah_pelanggaran]);
+    }
+
+    // ─── TES MINI ────────────────────────────────────────────────────
+    public function miniIndex()
+{
+    $jumlahSoal = ['listening' => 10, 'structure' => 10, 'reading' => 10];
+
+    $cukupSoal  = [
+        'listening' => BankSoal::where('kategori','listening')->where('is_aktif',1)->count() >= 10,
+        'structure' => BankSoal::where('kategori','structure')->where('is_aktif',1)->count() >= 10,
+        'reading'   => BankSoal::where('kategori','reading')->where('is_aktif',1)->count() >= 10,
+    ];
+
+    $totalSoal = array_sum($jumlahSoal);
+    $bisaMulai = !in_array(false, $cukupSoal, true);
+
+    return view('user.tes.mini', compact('jumlahSoal', 'cukupSoal', 'totalSoal', 'bisaMulai'));
+}
+    public function miniMulai(Request $request)
+    {
+        $kategoriUrutan    = ['listening', 'structure', 'reading'];
+        $jumlahPerKategori = ['listening' => 10, 'structure' => 10, 'reading' => 10];
+
+        $soalList = collect();
+        foreach ($kategoriUrutan as $kat) {
+            $soal = BankSoal::where('kategori', $kat)->where('is_aktif', 1)
+                ->take($jumlahPerKategori[$kat])->get();
+            // Resolve audio URL
+            $soal->each(fn($s) => $s->audio_url_resolved = \App\Services\AudioService::resolveUrl($s->audio_url));
+            $soalList = $soalList->merge($soal);
+        }
+
+        session(['mini_soal_ids' => $soalList->pluck('id')->toArray()]);
+        $durasi = 30 * 60;
+        return view('user.tes.mini_ujian', compact('soalList', 'durasi'));
+    }
+
+    public function miniSubmit(Request $request)
+    {
+        $jawaban   = $request->input('jawaban', []);
+        $soalIds   = session('mini_soal_ids', []);
+        $review    = [];
+        $benar     = 0;
+        $totalSoal = count($soalIds);
+
+        foreach ($soalIds as $soalId) {
+            $soal    = BankSoal::find($soalId);
+            if (!$soal) continue;
+            $jwb     = $jawaban[$soalId] ?? null;
+            $isBenar = $jwb && ($soal->jawaban_benar === $jwb);
+            if ($isBenar) $benar++;
+            $review[] = ['soal' => $soal, 'jawaban_user' => $jwb, 'is_benar' => $isBenar];
+        }
+
+        $persentase = $totalSoal > 0 ? round(($benar / $totalSoal) * 100) : 0;
+
+        GrafikProgress::create([
+            'user_id'             => auth()->id(),
+            'sumber'              => 'tes_mini',
+            'sumber_id'           => null,
+            'tanggal'             => today(),
+            'skor_listening'      => $this->hitungSkorMini($review, 'listening'),
+            'skor_structure'      => $this->hitungSkorMini($review, 'structure'),
+            'skor_reading'        => $this->hitungSkorMini($review, 'reading'),
+            'skor_toefl_estimasi' => 0,
+        ]);
+
+        session()->forget('mini_soal_ids');
+        return view('user.tes.mini_hasil', compact('review','benar','totalSoal','persentase'));
+    }
+
+    // ─── TES SIMULASI ────────────────────────────────────────────────
+    public function simulasiIndex()
+    {
+        $jumlahSoal = ['listening' => 20, 'structure' => 20, 'reading' => 20];
+        $cukupSoal  = [
+            'listening' => BankSoal::where('kategori','listening')->where('is_aktif',1)->count() >= 20,
+            'structure' => BankSoal::where('kategori','structure')->where('is_aktif',1)->count() >= 20,
+            'reading'   => BankSoal::where('kategori','reading')  ->where('is_aktif',1)->count() >= 20,
+        ];
+        return view('user.tes.simulasi', compact('jumlahSoal','cukupSoal'));
+    }
+
+    public function simulasiMulai(Request $request)
+    {
+        $userId  = auth()->id();
+        $section = $request->section ?? 'listening';
+        $jumlahPerKategori = ['listening' => 20, 'structure' => 20, 'reading' => 20];
+
+        if ($section === 'listening') {
+            session()->forget(['simulasi_percobaan_id','simulasi_jawaban',
+                'simulasi_soal_listening','simulasi_soal_structure','simulasi_soal_reading']);
+
+            $percobaan = PercobaanTes::create([
+                'user_id'      => $userId,
+                'sesi_id'      => null,
+                'waktu_mulai'  => now(),
+                'status'       => 'berlangsung',
+                'ip_address'   => $request->ip(),
+                'browser_info' => substr($request->userAgent(), 0, 255),
+            ]);
+            session(['simulasi_percobaan_id' => $percobaan->id]);
+        }
+
+        $percobaanId = session('simulasi_percobaan_id');
+
+        $soalList = BankSoal::where('kategori', $section)
+            ->where('is_aktif', 1)->orderBy('id')
+            ->take($jumlahPerKategori[$section])->get();
+
+        // Resolve audio URLs
+        $soalList->each(fn($s) => $s->audio_url_resolved = \App\Services\AudioService::resolveUrl($s->audio_url));
+
+        session(["simulasi_soal_{$section}" => $soalList->pluck('id')->toArray()]);
+
+        $durasiMap      = ['listening' => 1200, 'structure' => 900, 'reading' => 1800];
+        $durasi         = $durasiMap[$section] ?? 1200;
+        $sectionNum     = ['listening' => 1, 'structure' => 2, 'reading' => 3];
+        $currentSection = $section;
+
+        return view('user.tes.simulasi_ujian', compact(
+            'soalList','currentSection','sectionNum','durasi','percobaanId'
+        ));
+    }
+
+    public function simulasiSubmit(Request $request)
+    {
+        $section     = $request->section;
+        $jawaban     = $request->input('jawaban', []);
+        $percobaanId = $request->percobaan_id ?? session('simulasi_percobaan_id');
+
+        $allJawaban           = session('simulasi_jawaban', []);
+        $allJawaban[$section] = $jawaban;
+        session(['simulasi_jawaban' => $allJawaban]);
+
+        $urutan = ['listening' => 'structure', 'structure' => 'reading', 'reading' => null];
+        $next   = $urutan[$section] ?? null;
+
+        if ($next) {
+            return redirect()->route('user.tes.simulasi.ujian', ['section' => $next]);
+        }
+
+        return $this->simulasiSelesai($percobaanId);
+    }
+
+    private function simulasiSelesai($percobaanId)
+    {
+        $userId     = auth()->id();
+        $allJawaban = session('simulasi_jawaban', []);
+        $review     = [];
+        $benarL = $benarS = $benarR = 0;
+
+        foreach (['listening','structure','reading'] as $kat) {
+            $soalIds = session("simulasi_soal_{$kat}", []);
+            $jwbKat  = $allJawaban[$kat] ?? [];
+
+            foreach ($soalIds as $soalId) {
+                $soal    = BankSoal::find($soalId);
+                if (!$soal) continue;
+                $jwb     = $jwbKat[$soalId] ?? null;
+                $isBenar = $jwb && ($soal->jawaban_benar === $jwb);
+                if ($isBenar) {
+                    if ($kat === 'listening') $benarL++;
+                    if ($kat === 'structure') $benarS++;
+                    if ($kat === 'reading')   $benarR++;
+                }
+                $review[] = ['soal' => $soal, 'jawaban_user' => $jwb, 'is_benar' => $isBenar];
+            }
+        }
+
+        $sL    = $this->konversiListening($benarL);
+        $sS    = $this->konversiStructure($benarS);
+        $sR    = $this->konversiReading($benarR);
+        $total = max(310, min(677, (int) round(($sL + $sS + $sR) * (10/3))));
+
+        if ($percobaanId) {
+            PercobaanTes::where('id', $percobaanId)->where('user_id', $userId)->update([
+                'waktu_selesai'  => now(),
+                'skor_listening' => $sL,
+                'skor_structure' => $sS,
+                'skor_reading'   => $sR,
+                'skor_total'     => $total,
+                'jumlah_benar'   => $benarL + $benarS + $benarR,
+                'jumlah_salah'   => count($review) - ($benarL + $benarS + $benarR),
+                'status'         => 'selesai',
+            ]);
+        }
+
+        GrafikProgress::create([
+            'user_id'             => $userId,
+            'sumber'              => 'tes_simulasi',
+            'sumber_id'           => $percobaanId,
+            'tanggal'             => today(),
+            'skor_listening'      => $sL,
+            'skor_structure'      => $sS,
+            'skor_reading'        => $sR,
+            'skor_toefl_estimasi' => $total,
+        ]);
+
+        session()->forget(['simulasi_percobaan_id','simulasi_jawaban',
+            'simulasi_soal_listening','simulasi_soal_structure','simulasi_soal_reading']);
+
+        return view('user.tes.simulasi_hasil', compact('review','sL','sS','sR','total','benarL','benarS','benarR'));
+    }
+
+    // ─── HELPERS ─────────────────────────────────────────────────────
+    private function initJawaban(PercobaanTes $percobaan, string $section): void
+    {
+        $soalIds = SesiTesSoal::where('sesi_id', $percobaan->sesi_id)
+            ->where('bagian', $section)->orderBy('urutan_acak')->pluck('soal_id');
+        foreach ($soalIds as $i => $soalId) {
+            JawabanMahasiswa::firstOrCreate(
+                ['percobaan_id' => $percobaan->id, 'soal_id' => $soalId],
+                ['status_soal' => 'belum', 'nomor_soal' => $i + 1, 'is_synced' => 1]
+            );
+        }
+    }
+
+    private function hitungSkorSection(string $section, int $benar): int
+    {
+        return match($section) {
+            'listening' => $this->konversiListening($benar),
+            'structure' => $this->konversiStructure($benar),
+            'reading'   => $this->konversiReading($benar),
+            default     => 0,
+        };
+    }
+
+    private function hitungSkorMini(array $review, string $kategori): float
+    {
+        $filtered = array_filter($review, fn($r) => $r['soal']->kategori === $kategori);
+        $total    = count($filtered);
+        $benar    = count(array_filter($filtered, fn($r) => $r['is_benar']));
+        return $total > 0 ? round(($benar / $total) * 100, 1) : 0;
+    }
+
+    private function konversiListening(int $benar): int
+    {
+        $map = [50=>68,49=>67,48=>66,47=>65,46=>63,45=>62,44=>61,43=>60,42=>59,41=>58,
+                40=>57,39=>57,38=>56,37=>55,36=>54,35=>54,34=>53,33=>53,32=>52,31=>52,
+                30=>51,29=>50,28=>49,27=>49,26=>48,25=>48,24=>47,23=>47,22=>46,21=>45,
+                20=>45,19=>44,18=>43,17=>42,16=>41,15=>41,14=>39,13=>38,12=>37,11=>35,
+                10=>33,9=>32,8=>32,7=>31,6=>30,5=>29,4=>28,3=>27,2=>26,1=>25,0=>25];
+        return $map[$benar] ?? 25;
+    }
+
+    private function konversiStructure(int $benar): int
+    {
+        $map = [40=>68,39=>68,38=>65,37=>63,36=>61,35=>60,34=>58,33=>57,32=>56,31=>55,
+                30=>54,29=>53,28=>52,27=>51,26=>50,25=>49,24=>48,23=>47,22=>46,21=>45,
+                20=>44,19=>43,18=>42,17=>41,16=>40,15=>40,14=>38,13=>37,12=>36,11=>35,
+                10=>33,9=>31,8=>29,7=>27,6=>26,5=>25,4=>23,3=>22,2=>21,1=>20,0=>20];
+        return $map[$benar] ?? 20;
+    }
+
+    private function konversiReading(int $benar): int
+    {
+        $map = [50=>67,49=>66,48=>65,47=>63,46=>61,45=>60,44=>59,43=>58,42=>57,41=>56,
+                40=>55,39=>54,38=>54,37=>53,36=>52,35=>52,34=>51,33=>50,32=>49,31=>48,
+                30=>48,29=>47,28=>46,27=>46,26=>45,25=>44,24=>43,23=>43,22=>42,21=>41,
+                20=>40,19=>39,18=>38,17=>37,16=>36,15=>35,14=>34,13=>33,12=>32,11=>31,
+                10=>30,9=>29,8=>28,7=>28,6=>27,5=>26,4=>25,3=>23,2=>23,1=>22,0=>22];
+        return $map[$benar] ?? 22;
+    }
+}
