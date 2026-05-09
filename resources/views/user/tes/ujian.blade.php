@@ -71,6 +71,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .ns-head-title{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;
   letter-spacing:1px;margin-bottom:10px}
 .ns-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:10px}
+.nv.audio-live{background:rgba(234,88,12,.3)!important;color:#fb923c!important;border-color:#ea580c!important}
 .nv{width:100%;aspect-ratio:1;border-radius:5px;border:1.5px solid var(--border);
   cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;
   background:#fff;color:var(--muted);transition:all .12s;line-height:1}
@@ -312,6 +313,58 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
   <div class="tb-nodftr">{{ $pendaftaran->nomor_pendaftaran ?? '' }}</div>
 </div>
 
+{{-- ═══ AUDIO GLOBAL LISTENING — 1 file utuh ±35 menit ═══ --}}
+@if($currentSection === 'listening')
+<div id="global-audio-bar" style="background:#1a1a2e;border-bottom:1px solid rgba(255,255,255,.1);
+    padding:10px 20px;display:flex;align-items:center;gap:14px">
+
+    {{-- Status icon --}}
+    <div style="width:34px;height:34px;border-radius:50%;flex-shrink:0;
+        background:rgba(234,88,12,.2);border:2px solid #ea580c;
+        display:flex;align-items:center;justify-content:center" id="g-status-ico">
+        <i class="fas fa-headphones" style="color:#ea580c;font-size:13px"></i>
+    </div>
+
+    {{-- Label --}}
+    <div style="flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:#fdba74">
+            🎧 Audio Listening — Section 1
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.45)" id="g-status-txt">
+            Menunggu audio dimuat...
+        </div>
+    </div>
+
+    {{-- Progress bar --}}
+    <div style="flex:1;height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
+        <div id="g-progress" style="height:5px;background:#ea580c;border-radius:3px;width:0%;
+            transition:width .8s linear"></div>
+    </div>
+
+    {{-- Waktu --}}
+    <div style="font-size:12px;font-family:monospace;color:#fdba74;flex-shrink:0" id="g-time">
+        00:00 / 35:00
+    </div>
+
+    {{-- Lock badge --}}
+    <span style="font-size:11px;color:rgba(255,255,255,.3);flex-shrink:0">
+        <i class="fas fa-lock" style="font-size:9px"></i> 1× putar
+    </span>
+
+    {{-- Audio element tersembunyi — TIDAK ADA kontrol untuk user --}}
+    @if(!empty($audioGlobal))
+    <audio id="global-audio" src="{{ $audioGlobal }}" preload="auto" style="display:none"
+        oncanplay="onGlobalReady()"
+        ontimeupdate="onGlobalTick()"
+        onended="onGlobalEnded()">
+    </audio>
+    @else
+    {{-- Fallback: tidak ada audio global → pakai audio per soal --}}
+    <span style="color:#f87171;font-size:11px">⚠ Audio global belum diupload ke sesi ini</span>
+    @endif
+</div>
+@endif
+
 {{-- Listening answer countdown bar --}}
 <div class="listen-bar {{ $currentSection==='listening' ? 'show':'' }}" id="lb">
   <span class="lb-label">Waktu Jawab</span>
@@ -327,10 +380,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
     <div class="ns-head" style="overflow-y:auto;flex:1">
       <div class="ns-head-title">Navigator Soal</div>
       <div class="ns-grid" id="nav-grid">
+        {{-- Listening: semua soal BISA diklik (audio tetap jalan terus) --}}
         @foreach($soalList as $i=>$s)
-        <button class="nv {{ $i===0?'active':'' }} {{ $currentSection==='listening'&&$i>0?'listen-lock':'' }}"
+        <button class="nv {{ $i===0?'active':'' }}"
             data-idx="{{ $i }}"
-            onclick="{{ $currentSection!=='listening'?'goSoal('.$i.')':'void(0)' }}">
+            id="nav-btn-{{ $i }}"
+            onclick="goSoal({{ $i }})"
+            title="Soal {{ $i+1 }}">
           {{ $i+1 }}
         </button>
         @endforeach
@@ -351,8 +407,16 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       @if($currentSection==='listening')
       <div class="ns-listen-info">
         <i class="fas fa-info-circle"></i>
-        <strong>Listening:</strong> Audio otomatis. 1x putar. Soal berpindah otomatis setelah 12 detik.
+        <strong>Listening:</strong> Audio 1x putar, soal otomatis. Kamu bisa klik nomor manapun.
       </div>
+      <button id="btn-kembali-aktif"
+        onclick="kembaliKeSoalAktif()"
+        style="display:none;width:100%;margin-top:10px;padding:8px;
+        background:rgba(234,88,12,.2);color:#fb923c;border:1.5px solid rgba(234,88,12,.4);
+        border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+        font-family:inherit;animation:pulse-orange 1.5s infinite">
+        <i class="fas fa-headphones"></i> Kembali ke Soal Aktif
+      </button>
       @endif
     </div>
   </div>
@@ -386,10 +450,12 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
             <div class="passage">{{ $soal->passage_teks }}</div>
             @endif
 
-            {{-- Audio Player — menggunakan toefl-audio-wrap + audio-player.js --}}
+            {{-- Audio per soal: TERSEMBUNYI di Listening (pakai audio global)
+                 TAMPIL di Structure/Reading jika ada audio --}}
             @if($audioUrl)
             @php $pid = 'soal-' . $i; @endphp
-            <div class="toefl-audio-wrap" id="wrap-{{ $pid }}">
+            <div class="toefl-audio-wrap" id="wrap-{{ $pid }}"
+                style="{{ $currentSection==='listening' ? 'display:none' : '' }}">
               <div class="tap-label">
                 <i class="fas fa-headphones-alt"></i> Audio Listening
                 @if($currentSection==='listening')
@@ -543,6 +609,8 @@ function mulaiTes() {
 
     // Mulai timer tes
     if (typeof startTimer === 'function') startTimer();
+    // Set soal pertama sebagai live audio untuk Listening
+    if (SECTION === 'listening') setTimeout(() => updateNavAudioLive(0), 500);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -747,6 +815,8 @@ function triggerListenAudio(idx) {
 // LISTENING: COUNTDOWN 12 DETIK SETELAH AUDIO SELESAI
 // ═══════════════════════════════════════════════════════════════════
 function onAudioEnded(idx) {
+    // Update indikator bahwa soal berikutnya yang "live"
+    if (idx + 1 < soalList.length) updateNavAudioLive(idx + 1);
     if (!IS_LISTEN) return;
     startLbTimer(idx);
 }
@@ -1055,6 +1125,75 @@ document.addEventListener('fullscreenchange', () => {
         if(lbl) lbl.textContent = 'Keluar Layar!';
     }
 });
+
+// ══════════════════════════════════════════════════════════════
+// GLOBAL AUDIO LISTENING — 1 file utuh, tanpa kontrol user
+// ══════════════════════════════════════════════════════════════
+const globalAudio = document.getElementById('global-audio');
+let _globalStarted = false;
+
+function onGlobalReady() {
+    document.getElementById('g-status-txt').textContent = 'Klik "Saya Siap" untuk mulai...';
+}
+
+// Dipanggil dari mulaiTes() saat user klik tombol splash
+function startGlobalAudio() {
+    if (!globalAudio || _globalStarted) return;
+    _globalStarted = true;
+    globalAudio.play().catch(e => console.warn('Audio play:', e));
+    document.getElementById('g-status-txt').textContent = 'Sedang diputar...';
+    document.getElementById('g-status-ico').style.borderColor = '#4ade80';
+    document.querySelector('#g-status-ico i').style.color = '#4ade80';
+}
+
+function onGlobalTick() {
+    if (!globalAudio) return;
+    const cur = globalAudio.currentTime;
+    const dur = globalAudio.duration || 2100;
+    const pct = (cur / dur) * 100;
+
+    // Update progress bar
+    const prog = document.getElementById('g-progress');
+    if (prog) prog.style.width = pct + '%';
+
+    // Update waktu
+    const timeEl = document.getElementById('g-time');
+    if (timeEl) {
+        const fmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
+        timeEl.textContent = fmt(cur) + ' / ' + fmt(dur);
+    }
+}
+
+function onGlobalEnded() {
+    const txt = document.getElementById('g-status-txt');
+    if (txt) txt.textContent = 'Audio selesai. Kerjakan soal yang tersisa.';
+    const prog = document.getElementById('g-progress');
+    if (prog) { prog.style.width = '100%'; prog.style.background = '#4ade80'; }
+}
+
+// Blokir semua kontrol audio global dari keyboard/gesture
+if (globalAudio) {
+    // Blokir seek (tidak bisa dimaju-mundur)
+    globalAudio.addEventListener('seeking', function() {
+        if (Math.abs(this.currentTime - (this._lastTime || 0)) > 0.5) {
+            this.currentTime = this._lastTime || 0;
+        }
+    });
+    globalAudio.addEventListener('timeupdate', function() {
+        this._lastTime = this.currentTime;
+    });
+    // Blokir speed change
+    Object.defineProperty(globalAudio, 'playbackRate', {
+        set: function() {},
+        get: function() { return 1; }
+    });
+    // Blokir media session controls (tombol di HP/notif)
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('pause',       null);
+        navigator.mediaSession.setActionHandler('seekbackward',null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+    }
+}
 
 // ── BLOKIR SEMUA CARA KELUAR ─────────────────────────────────────
 // Blokir tombol back browser

@@ -138,6 +138,8 @@
                             <i class="fas fa-check-circle" style="font-size:9px"></i> Dikonfirmasi
                         </span>
                         @if($sesiAktif)
+                        @php $sesiIniSudahSelesai = in_array($sesiAktif->id, $sesiSudahSelesai ?? []); @endphp
+                        @if(!$sesiIniSudahSelesai)
                         <form action="{{ route('user.tes.mulai') }}" method="POST">
                             @csrf
                             <input type="hidden" name="sesi_id" value="{{ $sesiAktif->id }}">
@@ -145,6 +147,12 @@
                                 <i class="fas fa-play-circle"></i> Mulai Tes Sekarang
                             </button>
                         </form>
+                        @else
+                        <span style="font-size:13px;color:var(--muted);font-style:italic">
+                            <i class="fas fa-info-circle"></i>
+                            Tes di sesi ini sudah selesai. Daftar ke sesi baru.
+                        </span>
+                        @endif
                         @else
                         <span style="font-size:13px;color:var(--muted);font-style:italic">
                             <i class="fas fa-clock"></i> Menunggu admin aktifkan sesi
@@ -182,13 +190,15 @@
             @endif
         </div>
         <div class="card-body">
+            @php $sesiSudahSelesai = $sesiSudahSelesai ?? []; $sesiSudahDaftar = $sesiSudahDaftar ?? []; @endphp
             @forelse($sesiList as $sesi)
             @php
-                $sisa       = $sesi->kuota_peserta - $sesi->peserta_terdaftar;
-                $penuh      = $sisa <= 0;
-                $pct        = $sesi->kuota_peserta > 0
+                $sisa         = $sesi->kuota_peserta - $sesi->peserta_terdaftar;
+                $penuh        = $sisa <= 0;
+                $pct          = $sesi->kuota_peserta > 0
                     ? min(100, ($sesi->peserta_terdaftar / $sesi->kuota_peserta) * 100) : 0;
-                $sudahDaftar = $pendaftaran && $pendaftaran->sesi_id === $sesi->id;
+                $sudahDaftar  = in_array($sesi->id, $sesiSudahDaftar  ?? []);
+                $sudahSelesai = in_array($sesi->id, $sesiSudahSelesai ?? []);
             @endphp
             <div style="background:var(--bg);border-radius:12px;padding:18px 20px;
                 margin-bottom:12px;
@@ -239,7 +249,15 @@
                     </div>
 
                     <div style="flex-shrink:0;display:flex;align-items:center;padding-top:4px">
-                        @if($sudahDaftar)
+                        @if($sudahSelesai)
+                            {{-- Sesi ini sudah pernah diikuti tesnya — tidak bisa masuk lagi --}}
+                            <span style="font-size:12.5px;color:var(--muted);
+                                display:flex;align-items:center;gap:6px">
+                                <i class="fas fa-check-circle" style="color:var(--green)"></i>
+                                Sudah Pernah Ikut Tes
+                            </span>
+                        @elseif($sudahDaftar)
+                            {{-- Punya pendaftaran aktif di sesi ini --}}
                             <a href="{{ route('user.pendaftaran.status') }}" class="btn btn-outline">
                                 <i class="fas fa-clipboard-check"></i> Lihat Pendaftaran Saya
                             </a>
@@ -249,9 +267,10 @@
                                 <i class="fas fa-times-circle"></i> Penuh
                             </button>
                         @elseif($pendaftaran)
+                            {{-- Punya pendaftaran aktif di sesi LAIN --}}
                             <button disabled class="btn btn-outline"
                                 style="opacity:.45;cursor:not-allowed"
-                                title="Selesaikan atau batalkan pendaftaran aktif dulu">
+                                title="Selesaikan pendaftaran aktif dulu sebelum daftar sesi lain">
                                 <i class="fas fa-lock"></i> Sudah Ada Pendaftaran
                             </button>
                         @else

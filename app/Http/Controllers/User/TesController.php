@@ -35,13 +35,15 @@ class TesController extends Controller
         // Cek blokir absen (tetap ada — ini sanksi ketidakhadiran, bukan cooldown)
         if ($user->diblokir()) {
             return view('user.tes.full', [
-                'pendaftaran'  => null,
-                'sesiAktif'    => null,
-                'sesiList'     => collect(),
-                'blokirAbsen'  => true,
-                'sudahLulus'   => false,
-                'jumlahTes'    => 0,
-                'sisaCoba'     => 0,
+                'pendaftaran'     => null,
+                'sesiAktif'       => null,
+                'sesiList'        => collect(),
+                'blokirAbsen'     => true,
+                'sudahLulus'      => false,
+                'jumlahTes'       => 0,
+                'sisaCoba'        => 0,
+                'sesiSudahDaftar' => [],
+                'sesiSudahSelesai'=> [],
             ]);
         }
 
@@ -63,14 +65,16 @@ class TesController extends Controller
         if ($sudahLulus) {
             $tesTerbaik = $riwayatTes->sortByDesc('skor_total')->first();
             return view('user.tes.full', [
-                'pendaftaran'  => null,
-                'sesiAktif'    => null,
-                'sesiList'     => collect(),
-                'sudahLulus'   => true,
-                'jumlahTes'    => $jumlahTes,
-                'sisaCoba'     => 0,
-                'tesTerbaik'   => $tesTerbaik,
-                'blokirAbsen'  => false,
+                'pendaftaran'     => null,
+                'sesiAktif'       => null,
+                'sesiList'        => collect(),
+                'sudahLulus'      => true,
+                'jumlahTes'       => $jumlahTes,
+                'sisaCoba'        => 0,
+                'tesTerbaik'      => $tesTerbaik,
+                'blokirAbsen'     => false,
+                'sesiSudahDaftar' => [],
+                'sesiSudahSelesai'=> [],
             ]);
         }
 
@@ -78,15 +82,17 @@ class TesController extends Controller
         if ($jumlahTes >= $maxCoba) {
             $tesTerakhir = $riwayatTes->last();
             return view('user.tes.full', [
-                'pendaftaran'  => null,
-                'sesiAktif'    => null,
-                'sesiList'     => collect(),
-                'sudahLulus'   => false,
-                'maxTercapai'  => true,
-                'jumlahTes'    => $jumlahTes,
-                'sisaCoba'     => 0,
-                'tesTerakhir'  => $tesTerakhir,
-                'blokirAbsen'  => false,
+                'pendaftaran'     => null,
+                'sesiAktif'       => null,
+                'sesiList'        => collect(),
+                'sudahLulus'      => false,
+                'maxTercapai'     => true,
+                'jumlahTes'       => $jumlahTes,
+                'sisaCoba'        => 0,
+                'tesTerakhir'     => $tesTerakhir,
+                'blokirAbsen'     => false,
+                'sesiSudahDaftar' => [],
+                'sesiSudahSelesai'=> [],
             ]);
         }
 
@@ -110,15 +116,28 @@ class TesController extends Controller
         // Hanya ambil sesi_id yang pendaftarannya MASIH AKTIF (menunggu/dikonfirmasi)
         // Sesi yang sudah selesai/ditolak/dibatalkan TIDAK ditandai "Sudah Ada Pendaftaran"
         // karena user boleh daftar ke sesi baru setelah tes lama selesai
+        // Sesi yang pendaftarannya masih aktif (menunggu/dikonfirmasi)
         $sesiSudahDaftar = \App\Models\PendaftaranTes::where('user_id', $userId)
             ->whereIn('status_pendaftaran', ['menunggu','dikonfirmasi'])
-            ->pluck('sesi_id')
-            ->toArray();
+            ->pluck('sesi_id')->toArray();
+
+        // Sesi yang sudah pernah DISELESAIKAN tes-nya
+        // → tombol Mulai Tes disembunyikan, user harus daftar sesi LAIN
+        $sesiSudahSelesai = PercobaanTes::where('user_id', $userId)
+            ->where('status', 'selesai')
+            ->whereNotNull('sesi_id')
+            ->pluck('sesi_id')->toArray();
 
         return view('user.tes.full', compact(
             'pendaftaran','sesiAktif','sesiList',
-            'jumlahTes','sisaCoba','sudahLulus','sesiSudahDaftar'
-        ) + ['blokirAbsen' => false, 'maxTercapai' => false, 'tesTerbaik' => null]);
+            'jumlahTes','sisaCoba','sudahLulus',
+            'sesiSudahDaftar','sesiSudahSelesai'
+        ) + [
+            'blokirAbsen' => false,
+            'maxTercapai' => false,
+            'tesTerbaik'  => null,
+            'tesTerakhir' => null,
+        ]);
     }
 
     // ─── MULAI TES FULL ──────────────────────────────────────────
@@ -484,6 +503,13 @@ class TesController extends Controller
             \Log::warning('GrafikProgress: ' . $e->getMessage());
         }
 
+        // ── UPDATE STATUS PENDAFTARAN → selesai ──────────────────────
+        // Agar user bisa daftar sesi BARU setelah tes ini selesai
+        PendaftaranTes::where('user_id', $userId)
+            ->where('sesi_id', $percobaan->sesi_id)
+            ->whereIn('status_pendaftaran', ['menunggu','dikonfirmasi'])
+            ->update(['status_pendaftaran' => 'selesai']);
+
         // ── NOTIFIKASI IN-APP (cepat, tidak blocking) ──
         try {
             $user  = \App\Models\User::find($userId);
@@ -590,11 +616,9 @@ class TesController extends Controller
             'structure' => BankSoal::where('kategori','structure')->where('is_aktif',1)->count() >= 10,
             'reading'   => BankSoal::where('kategori','reading')  ->where('is_aktif',1)->count() >= 10,
         ];
-        return view('user.tes.mini', compact('jumlahSoal','cukupSoal',
-            'totalSoal', 'bisaMulai') + [
-            'totalSoal' => array_sum($jumlahSoal),
-            'bisaMulai' => !in_array(false, $cukupSoal, true),
-        ]);
+        $totalSoal = array_sum($jumlahSoal);
+        $bisaMulai = !in_array(false, $cukupSoal, true);
+        return view('user.tes.mini', compact('jumlahSoal','cukupSoal','totalSoal','bisaMulai'));
     }
 
     public function miniMulai(Request $request)
