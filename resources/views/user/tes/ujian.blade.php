@@ -346,12 +346,49 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         00:00 / 35:00
     </div>
 
-    {{-- Lock badge --}}
-    <span style="font-size:11px;color:rgba(255,255,255,.3);flex-shrink:0">
-        <i class="fas fa-lock" style="font-size:9px"></i> 1× putar
+    {{-- Kontrol audio berdasarkan tipe tes --}}
+    @if(($tipeTes ?? 'full') === 'full')
+    {{-- TES FULL: hanya 1 tombol Play, setelah play tidak bisa apa-apa --}}
+    <button id="g-play-once" onclick="startAudioOnce()"
+        style="background:rgba(234,88,12,.9);border:none;border-radius:8px;
+        padding:6px 16px;color:#fff;font-size:12.5px;font-weight:700;
+        cursor:pointer;font-family:inherit;flex-shrink:0;
+        display:flex;align-items:center;gap:7px"
+        title="Audio hanya bisa diputar 1 kali">
+        <i class="fas fa-play" style="font-size:10px"></i> Mulai Audio
+    </button>
+    <span style="font-size:11px;color:rgba(239,68,68,.6);flex-shrink:0;
+        background:rgba(239,68,68,.08);padding:3px 10px;border-radius:5px;
+        border:1px solid rgba(239,68,68,.2)">
+        <i class="fas fa-lock" style="font-size:9px"></i> 1× putar · no pause · no rewind
     </span>
+    @else
+    {{-- SIMULASI / MINI: pause + speed tersedia --}}
+    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        <button id="g-pause-btn" onclick="toggleGlobalPause()"
+            style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+            color:rgba(255,255,255,.8);border-radius:6px;padding:4px 12px;
+            cursor:pointer;font-size:12px;font-family:inherit">
+            <i class="fas fa-play" id="g-pause-ico"></i>
+        </button>
+        <select id="g-speed-sel" onchange="setGlobalSpeed(this.value)"
+            style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+            color:rgba(255,255,255,.7);border-radius:6px;padding:3px 7px;
+            font-size:12px;font-family:inherit;cursor:pointer">
+            <option value="0.75">0.75×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5">1.5×</option>
+        </select>
+    </div>
+    <span style="font-size:11px;color:rgba(34,197,94,.6);flex-shrink:0;
+        background:rgba(34,197,94,.08);padding:3px 8px;border-radius:5px;
+        border:1px solid rgba(34,197,94,.2)">
+        <i class="fas fa-play" style="font-size:9px"></i> Bebas diputar
+    </span>
+    @endif
 
-    {{-- Audio element tersembunyi — TIDAK ADA kontrol untuk user --}}
+    {{-- Audio element tersembunyi — TIDAK ADA kontrol langsung untuk user --}}
     @if(!empty($audioGlobal))
     <audio id="global-audio" src="{{ $audioGlobal }}" preload="auto" style="display:none"
         oncanplay="onGlobalReady()"
@@ -359,8 +396,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
         onended="onGlobalEnded()">
     </audio>
     @else
-    {{-- Fallback: tidak ada audio global → pakai audio per soal --}}
-    <span style="color:#f87171;font-size:11px">⚠ Audio global belum diupload ke sesi ini</span>
+    <span style="color:#f87171;font-size:11px">
+        <i class="fas fa-exclamation-triangle"></i> Audio belum diupload ke sesi ini
+    </span>
     @endif
 </div>
 @endif
@@ -618,6 +656,8 @@ function mulaiTes() {
 // ═══════════════════════════════════════════════════════════════════
 const TOTAL        = {{ count($soalList) }};
 const SECTION      = '{{ $currentSection }}';
+const TIPE_TES     = '{{ $tipeTes ?? "full" }}'; // full | simulasi | mini | praktik
+const IS_FULL_TES  = TIPE_TES === 'full';         // full = aturan ketat audio
 const IS_LISTEN    = SECTION === 'listening';
 const DURASI_INIT  = {{ $durasiDetik }};
 const PERCOBAAN_ID = {{ $percobaan->id }};
@@ -1130,6 +1170,40 @@ document.addEventListener('fullscreenchange', () => {
 // GLOBAL AUDIO LISTENING — 1 file utuh, tanpa kontrol user
 // ══════════════════════════════════════════════════════════════
 const globalAudio = document.getElementById('global-audio');
+
+// ── Tes Full: 1 tombol play, setelah itu dikunci total ──────────
+function startAudioOnce() {
+    if (!globalAudio) return;
+    const btn = document.getElementById('g-play-once');
+    if (!btn) return;
+
+    globalAudio.play().then(() => {
+        // Sembunyikan tombol setelah play — tidak bisa play lagi
+        btn.style.display = 'none';
+        _globalStarted = true;
+
+        // Kunci semua kontrol
+        globalAudio.addEventListener('pause', function() {
+            if (!window._submitting && _globalStarted)
+                setTimeout(() => { if (this.paused && !window._submitting) this.play().catch(()=>{}); }, 200);
+        });
+
+        // Blokir seek/rewind
+        globalAudio.addEventListener('seeking', function() {
+            if (this.currentTime < (this._lastTime || 0) - 1)
+                this.currentTime = this._lastTime || 0;
+        });
+        globalAudio.addEventListener('timeupdate', function() {
+            this._lastTime = this.currentTime;
+        });
+
+        // Blokir media session (tombol HP)
+        if ('mediaSession' in navigator) {
+            ['pause','stop','seekbackward','seekforward','previoustrack','nexttrack']
+                .forEach(a => { try { navigator.mediaSession.setActionHandler(a, () => {}); } catch(e){} });
+        }
+    }).catch(e => console.warn('Audio play error:', e));
+}
 let _globalStarted = false;
 
 function onGlobalReady() {
@@ -1144,6 +1218,21 @@ function startGlobalAudio() {
     document.getElementById('g-status-txt').textContent = 'Sedang diputar...';
     document.getElementById('g-status-ico').style.borderColor = '#4ade80';
     document.querySelector('#g-status-ico i').style.color = '#4ade80';
+
+    // Tes Full: blokir pause dari tombol keyboard/media session
+    if (IS_FULL_TES) {
+        // Cegah pause dari luar (tombol keyboard media)
+        globalAudio.addEventListener('pause', function() {
+            if (_globalStarted && !_submitting) {
+                // Auto-resume jika di-pause paksa (bukan karena submit)
+                setTimeout(() => {
+                    if (globalAudio.paused && !_submitting) {
+                        globalAudio.play().catch(()=>{});
+                    }
+                }, 200);
+            }
+        });
+    }
 }
 
 function onGlobalTick() {
@@ -1164,6 +1253,24 @@ function onGlobalTick() {
     }
 }
 
+function toggleGlobalPause() {
+    // Di Tes Full: tombol tidak tersedia (disembunyikan di blade)
+    if (!globalAudio || IS_FULL_TES) return;
+    if (globalAudio.paused) {
+        globalAudio.play();
+        document.getElementById('g-pause-ico').className = 'fas fa-pause';
+    } else {
+        globalAudio.pause();
+        document.getElementById('g-pause-ico').className = 'fas fa-play';
+    }
+}
+
+function setGlobalSpeed(v) {
+    // Di Tes Full: speed dikunci 1x
+    if (!globalAudio || IS_FULL_TES) return;
+    globalAudio.playbackRate = parseFloat(v);
+}
+
 function onGlobalEnded() {
     const txt = document.getElementById('g-status-txt');
     if (txt) txt.textContent = 'Audio selesai. Kerjakan soal yang tersisa.';
@@ -1171,28 +1278,76 @@ function onGlobalEnded() {
     if (prog) { prog.style.width = '100%'; prog.style.background = '#4ade80'; }
 }
 
-// Blokir semua kontrol audio global dari keyboard/gesture
+// ─────────────────────────────────────────────────────────────
+// ATURAN AUDIO BERDASARKAN TIPE TES
+// Tes Full  : 1× putar, NO pause, NO seek, NO speed
+// Simulasi  : boleh pause & speed, tidak bisa rewind
+// Mini Test : bebas pause & speed
+// ─────────────────────────────────────────────────────────────
 if (globalAudio) {
-    // Blokir seek (tidak bisa dimaju-mundur)
-    globalAudio.addEventListener('seeking', function() {
-        if (Math.abs(this.currentTime - (this._lastTime || 0)) > 0.5) {
-            this.currentTime = this._lastTime || 0;
-        }
-    });
+    // Simpan posisi terakhir untuk deteksi rewind
     globalAudio.addEventListener('timeupdate', function() {
         this._lastTime = this.currentTime;
     });
-    // Blokir speed change
-    Object.defineProperty(globalAudio, 'playbackRate', {
-        set: function() {},
-        get: function() { return 1; }
-    });
-    // Blokir media session controls (tombol di HP/notif)
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.setActionHandler('pause',       null);
-        navigator.mediaSession.setActionHandler('seekbackward',null);
-        navigator.mediaSession.setActionHandler('seekforward', null);
+
+    if (IS_FULL_TES) {
+        // ── TES FULL: semua kontrol dikunci ──
+
+        // Blokir rewind
+        globalAudio.addEventListener('seeking', function() {
+            if (this.currentTime < (this._lastTime || 0) - 1)
+                this.currentTime = this._lastTime || 0;
+        });
+
+        // Blokir pause paksa — putar ulang otomatis
+        globalAudio.addEventListener('pause', function() {
+            if (!window._submitting && _globalStarted)
+                setTimeout(() => { if (this.paused && !window._submitting) this.play(); }, 200);
+        });
+
+        // Blokir speed change (paksa 1×)
+        const _origSetRate = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'playbackRate')?.set;
+        if (_origSetRate) {
+            Object.defineProperty(globalAudio, 'playbackRate', {
+                get: function() { return 1; },
+                set: function() { _origSetRate.call(this, 1); },
+                configurable: true,
+            });
+        }
+
+        // Blokir media session (tombol HP / notifikasi)
+        if ('mediaSession' in navigator) {
+            ['pause','stop','seekbackward','seekforward','previoustrack','nexttrack']
+                .forEach(a => { try { navigator.mediaSession.setActionHandler(a, () => {}); } catch(e){} });
+        }
+
+    } else {
+        // ── SIMULASI / MINI: blokir rewind signifikan saja ──
+        globalAudio.addEventListener('seeking', function() {
+            if (this.currentTime < (this._lastTime || 0) - 3)
+                this.currentTime = this._lastTime || 0;
+        });
     }
+}
+
+// Pause/resume — HANYA tersedia untuk Simulasi & Mini
+function toggleGlobalPause() {
+    if (!globalAudio || IS_FULL_TES) return;
+    if (globalAudio.paused) {
+        globalAudio.play();
+        document.getElementById('g-pause-ico').className = 'fas fa-pause';
+        document.getElementById('g-status-txt').textContent = 'Sedang diputar...';
+    } else {
+        globalAudio.pause();
+        document.getElementById('g-pause-ico').className = 'fas fa-play';
+        document.getElementById('g-status-txt').textContent = 'Dijeda';
+    }
+}
+
+// Speed control — HANYA tersedia untuk Simulasi & Mini
+function setGlobalSpeed(val) {
+    if (!globalAudio || IS_FULL_TES) return;
+    globalAudio.playbackRate = parseFloat(val);
 }
 
 // ── BLOKIR SEMUA CARA KELUAR ─────────────────────────────────────

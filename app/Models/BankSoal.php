@@ -2,28 +2,102 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
-class BankSoal extends Model {
+class BankSoal extends Model
+{
     protected $table    = 'bank_soal';
     protected $fillable = [
-        'created_by','kategori','part','nomor_soal','tingkat_kesulitan',
-        'untuk_tes_full','pertanyaan','group_id','grup_soal_id',
-        'passage_teks','audio_url','durasi_audio_detik',
-        'pilihan_a','pilihan_b','pilihan_c','pilihan_d',
-        'jawaban_benar','pembahasan','bobot_nilai','is_aktif','pakai_count',
+        'created_by', 'kategori', 'part', 'sub_bagian', 'nomor_soal', 'urutan_soal',
+        'tingkat_kesulitan', 'tipe_paket', 'skill_materi', 'untuk_tes_full',
+
+        // Tipe soal (semua section)
+        'tipe_soal',
+
+        // Reading
+        'passage_id', 'highlight_kata', 'highlight_paragraf',
+        'insert_sentence_teks', 'fill_text', 'email_meta',
+
+        // Listening
+        'modul_id', 'paket_id', 'nomor_dalam_paket',
+        'audio_paket_id', 'audio_url', 'audio_script', 'script_audio',
+        'durasi_audio_detik', 'start_second', 'order_number', 'image_url',
+
+        // Structure
+        'arrange_words',
+
+        // Konten soal
+        'group_id', 'grup_soal_id', 'pertanyaan', 'passage_teks',
+        'pilihan_a', 'pilihan_b', 'pilihan_c', 'pilihan_d', 'pilihan_e', 'pilihan_f',
+        'jawaban_benar', 'jawaban_benar_multiple',
+        'pembahasan', 'rationale', 'bobot_nilai', 'is_aktif', 'pakai_count',
     ];
 
-    // Part yang valid per kategori
-    public static array $partMap = [
-        'listening' => ['A'=>'Part A','B'=>'Part B','C'=>'Part C'],
-        'structure' => ['A'=>'Part A (Structure)','B'=>'Part B (Written Expression)'],
-        'reading'   => [],  // reading pakai passage/grup
+    protected $casts = [
+        'is_aktif'       => 'boolean',
+        'arrange_words'  => 'array',
+        'email_meta'     => 'array',
     ];
 
-    public function creator()  { return $this->belongsTo(User::class,'created_by'); }
-    public function grupSoal() { return $this->belongsTo(GrupSoal::class,'grup_soal_id'); }
+    // ── Konstanta ──────────────────────────────────────────────────
 
-    public function getPartLabelAttribute(): string {
-        if (!$this->part) return '—';
-        return self::$partMap[$this->kategori][$this->part] ?? "Part {$this->part}";
+    /** Tipe soal per section */
+    public const TIPE_PER_SECTION = [
+        'reading'   => [
+            'academic_passage'    => '📄 Academic Passage',
+            'email_reading'       => '📧 Email Reading',
+            'fill_missing_letters'=> '🔤 Fill Missing Letters',
+            'vocabulary'          => '🔵 Vocabulary in Context',
+            'insert_sentence'     => '🟢 Insert a Sentence',
+            'click_sentence'      => '🟣 Click on Sentence',
+            'prose_summary'       => '🔴 Prose Summary',
+        ],
+        'listening' => [
+            'best_response'  => '🎧 Best Response (Choose Answer)',
+            'multiple_choice'=> '🎧 Multiple Choice',
+        ],
+        'structure' => [
+            'best_response'    => '💬 Best Response (Dialogue)',
+            'arrange_sentence' => '🔀 Arrange Sentence',
+        ],
+    ];
+
+    public const TIPE_PAKET = [
+        'full'     => '🏆 Tes Full',
+        'simulasi' => '🎯 Simulasi',
+        'mini'     => '⚡ Tes Mini',
+        'praktik'  => '📚 Praktik',
+    ];
+
+    // ── Relasi ─────────────────────────────────────────────────────
+   public function creator()    { return $this->belongsTo(User::class, 'created_by'); }
+public function grupSoal()   { return $this->belongsTo(GrupSoal::class, 'grup_soal_id'); }
+public function passage()    { return $this->belongsTo(Passage::class, 'passage_id'); }
+public function modul()      { return $this->belongsTo(ModulSoal::class, 'modul_id'); }
+public function audioPaket() { return $this->belongsTo(ListeningAudioPaket::class, 'audio_paket_id'); }
+    // ── Helper ─────────────────────────────────────────────────────
+    public function getPilihanAttribute(): array {
+        $p = [];
+        foreach (['a','b','c','d','e','f'] as $k) {
+            $col = 'pilihan_' . $k;
+            if (!empty($this->$col)) $p[$k] = $this->$col;
+        }
+        return $p;
     }
+
+    public function getJawabanBenarArrayAttribute(): array {
+        if ($this->tipe_soal === 'prose_summary' && $this->jawaban_benar_multiple)
+            return explode(',', $this->jawaban_benar_multiple);
+        return [$this->jawaban_benar];
+    }
+
+    public function getTipeLabelAttribute(): string {
+        foreach (self::TIPE_PER_SECTION as $section => $types) {
+            if (isset($types[$this->tipe_soal])) return $types[$this->tipe_soal];
+        }
+        return ucfirst($this->tipe_soal ?? 'unknown');
+    }
+
+    // ── Scopes ─────────────────────────────────────────────────────
+    public function scopeKategori($q, string $kat)  { return $q->where('kategori', $kat); }
+    public function scopeTipePaket($q, string $tipe) { return $q->where('tipe_paket', $tipe); }
+    public function scopeAktif($q)                  { return $q->where('is_aktif', true); }
 }

@@ -1,349 +1,533 @@
 @extends('layouts.admin')
-@section('title','Tambah Soal')
-@section('page-title','Tambah Soal Baru')
+@section('title','Tambah Soal Baru')
+@section('page-title','Bank Soal — Tambah Soal')
 @section('breadcrumb','Admin / Bank Soal / Tambah')
 
+@push('styles')
+<style>
+/* ─ Step indicator ─ */
+.steps{display:flex;margin-bottom:28px;gap:0}
+.step{flex:1;padding:14px 8px;text-align:center;background:var(--navy-light);
+    border:1px solid var(--border);border-right:none;transition:all .2s}
+.step:first-child{border-radius:10px 0 0 10px}
+.step:last-child{border-right:1px solid var(--border);border-radius:0 10px 10px 0}
+.step.active{background:var(--blue);border-color:var(--blue)}
+.step.done{background:rgba(22,163,74,.15);border-color:rgba(22,163,74,.3)}
+.step-n{font-size:18px;font-weight:900;line-height:1}
+.step-l{font-size:11px;opacity:.7;margin-top:2px}
+
+/* ─ Section picker ─ */
+.sec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:6px}
+.sec-card{border:2px solid var(--border);border-radius:14px;padding:26px 16px 20px;
+    text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)}
+.sec-card:hover,.sec-card.on{border-color:var(--blue);background:rgba(26,86,219,.08)}
+.sec-card.on{box-shadow:0 0 0 3px rgba(26,86,219,.2)}
+.sec-ico{font-size:34px;margin-bottom:10px}
+.sec-name{font-size:15px;font-weight:800;margin-bottom:5px}
+.sec-desc{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ─ Type picker ─ */
+.type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:6px}
+.type-card{border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;
+    cursor:pointer;transition:all .15s;background:var(--bg);
+    display:flex;align-items:flex-start;gap:12px}
+.type-card:hover,.type-card.on{border-color:var(--green)}
+.type-card.on{background:rgba(22,163,74,.06)}
+.tc-ico{font-size:22px;flex-shrink:0;line-height:1;margin-top:1px}
+.tc-name{font-size:13.5px;font-weight:700;margin-bottom:3px}
+.tc-desc{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* ─ Form cards ─ */
+.fc{background:var(--navy-light);border:1px solid var(--border);
+    border-radius:12px;padding:20px 22px;margin-bottom:14px}
+.fc-title{font-size:11.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:1px;color:var(--muted);margin-bottom:16px;
+    display:flex;align-items:center;gap:8px}
+.fc-title i{color:var(--accent)}
+.hint{background:rgba(26,86,219,.07);border:1px solid rgba(26,86,219,.18);
+    border-radius:8px;padding:11px 14px;font-size:13px;line-height:1.7;margin-bottom:14px}
+.hint strong{color:var(--accent)}
+
+/* ─ Kunci jawaban visual ─ */
+.ans-row{display:flex;gap:8px}
+.ans-opt{flex:1}
+.ans-opt input{display:none}
+.ans-opt label{display:flex;align-items:center;justify-content:center;
+    padding:10px;border-radius:8px;border:2px solid var(--border);
+    cursor:pointer;font-weight:800;font-size:15px;transition:all .15s;width:100%}
+.ans-opt input:checked+label{background:var(--green);border-color:var(--green);color:#fff}
+
+/* ─ Halaman sections ─ */
+.page{display:none}
+.page.show{display:block}
+
+/* ─ Written expression preview ─ */
+#we-prev{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:12px;font-size:14px;min-height:36px;margin-top:8px;display:none;
+    line-height:1.8}
+
+/* ─ Arrange sentence chips ─ */
+.word-chip{display:inline-flex;align-items:center;gap:6px;
+    background:rgba(26,86,219,.12);border:1px solid rgba(26,86,219,.3);
+    border-radius:6px;padding:4px 10px;margin:3px;font-size:13px;font-weight:600;cursor:grab}
+.word-chip .rm{cursor:pointer;color:var(--muted);font-size:12px}
+</style>
+@endpush
+
 @section('content')
-<div style="max-width:900px">
 
-{{-- Alert error --}}
-@if($errors->any())
-<div class="alert alert-danger" style="margin-bottom:18px">
-    <i class="fas fa-exclamation-circle"></i>
-    <div>
-        @foreach($errors->all() as $e)
-        <div>• {{ $e }}</div>
-        @endforeach
+{{-- ══ STEP INDICATOR ══ --}}
+<div class="steps" id="steps">
+    <div class="step active" id="s1"><div class="step-n">1</div><div class="step-l">Section</div></div>
+    <div class="step" id="s2"><div class="step-n">2</div><div class="step-l">Tipe Soal</div></div>
+    <div class="step" id="s3"><div class="step-n">3</div><div class="step-l">Input Soal</div></div>
+</div>
+
+{{-- ══ PAGE 1: Pilih Section ══ --}}
+<div class="page show" id="p1">
+    <div class="fc">
+        <div class="fc-title"><i class="fas fa-layer-group"></i> Pilih Section</div>
+        <div class="sec-grid">
+            <div class="sec-card" onclick="pilihSection('reading')">
+                <div class="sec-ico">📖</div>
+                <div class="sec-name">Reading</div>
+                <div class="sec-desc">
+                    Academic Passage · Email Reading<br>
+                    Fill Missing Letters<br>
+                    <small style="color:#93c5fd">Fisher-Yates: urutan passage diacak</small>
+                </div>
+            </div>
+            <div class="sec-card" onclick="pilihSection('listening')">
+                <div class="sec-ico">🎧</div>
+                <div class="sec-name">Listening</div>
+                <div class="sec-desc">
+                    1 audio utuh ±35 menit<br>
+                    Soal muncul otomatis by timestamp<br>
+                    <small style="color:#fb923c">Fisher-Yates: pilihan jawaban diacak</small>
+                </div>
+            </div>
+            <div class="sec-card" onclick="pilihSection('structure')">
+                <div class="sec-ico">✏️</div>
+                <div class="sec-name">Structure</div>
+                <div class="sec-desc">
+                    Best Response (Dialogue)<br>
+                    Arrange Sentence<br>
+                    <small style="color:#fbbf24">Fisher-Yates: urutan soal diacak</small>
+                </div>
+            </div>
+        </div>
+        <input type="hidden" id="v-section">
+
+        {{-- Catatan Reading ─ arahkan ke passage system ─ --}}
+        <div id="reading-note" style="display:none;margin-top:14px">
+            <div class="hint">
+                <strong>📖 Reading</strong> dikelola via sistem <strong>Passage</strong>.
+                Setiap soal terhubung ke 1 teks bacaan.<br>
+                Gunakan menu <strong>Bank Soal → Reading Passages</strong> untuk input soal reading.
+            </div>
+            <div style="display:flex;gap:10px">
+                <a href="{{ route('admin.passage.index') }}" class="btn btn-primary">
+                    <i class="fas fa-book-open"></i> Ke Halaman Reading Passages
+                </a>
+                <a href="{{ route('admin.passage.create') }}" class="btn btn-outline">
+                    <i class="fas fa-plus"></i> Buat Passage Baru
+                </a>
+            </div>
+        </div>
     </div>
 </div>
-@endif
 
-<form action="{{ route('admin.soal.store') }}" method="POST" enctype="multipart/form-data" id="soal-form">
-@csrf
-
-{{-- ── ROW 1: Kategori + Kesulitan + Status ── --}}
-<div class="card" style="margin-bottom:16px">
-    <div class="card-header">
-        <h3><i class="fas fa-sliders-h" style="color:var(--accent);margin-right:8px"></i>Informasi Dasar</h3>
-        <a href="{{ route('admin.soal.index') }}" class="btn btn-outline btn-sm">
+{{-- ══ PAGE 2: Pilih Tipe Soal ══ --}}
+<div class="page" id="p2">
+    <div class="fc">
+        <div class="fc-title"><i class="fas fa-shapes"></i>
+            Pilih Tipe Soal — <span id="p2-sec-label" style="color:var(--accent)"></span>
+        </div>
+        <div class="type-grid" id="type-grid">
+            {{-- diisi JS --}}
+        </div>
+        <input type="hidden" id="v-tipe">
+    </div>
+    <div style="display:flex;gap:10px">
+        <button type="button" onclick="goPage(1)" class="btn btn-outline">
             <i class="fas fa-arrow-left"></i> Kembali
-        </a>
-    </div>
-    <div class="card-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Kategori <span style="color:var(--red)">*</span></label>
-                <select name="kategori" class="form-control" required id="kat-sel" onchange="onKategoriChange()">
-                    <option value="">-- Pilih Kategori --</option>
-                    <option value="reading"   {{ old('kategori')=='reading'   ?'selected':'' }}>📖 Reading</option>
-                    <option value="listening" {{ old('kategori')=='listening' ?'selected':'' }}>🎧 Listening</option>
-                    <option value="structure" {{ old('kategori')=='structure' ?'selected':'' }}>✏️ Structure</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Part</label>
-                <select name="part" class="form-control" id="part-sel">
-                    <option value="">-- Pilih Part --</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Tingkat Kesulitan <span style="color:var(--red)">*</span></label>
-                <select name="tingkat_kesulitan" class="form-control" required>
-                    <option value="easy"   {{ old('tingkat_kesulitan','medium')=='easy'   ?'selected':'' }}>🟢 Easy</option>
-                    <option value="medium" {{ old('tingkat_kesulitan','medium')=='medium' ?'selected':'' }}>🟡 Medium</option>
-                    <option value="hard"   {{ old('tingkat_kesulitan','medium')=='hard'   ?'selected':'' }}>🔴 Hard</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Pengaturan</label>
-                <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
-                    <label style="display:flex;align-items:center;gap:9px;cursor:pointer">
-                        <input type="checkbox" name="untuk_tes_full" value="1"
-                            {{ old('untuk_tes_full',1) ? 'checked' : '' }}
-                            style="width:16px;height:16px;accent-color:var(--accent)">
-                        <span style="font-size:13px">Untuk Tes Full</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:9px;cursor:pointer">
-                        <input type="checkbox" name="is_aktif" value="1"
-                            {{ old('is_aktif',1) ? 'checked' : '' }}
-                            style="width:16px;height:16px;accent-color:#16a34a">
-                        <span style="font-size:13px">Aktifkan Soal</span>
-                    </label>
-                </div>
-            </div>
-        </div>
+        </button>
     </div>
 </div>
 
-{{-- ── SECTION READING: Passage ── --}}
-<div id="section-reading" style="display:none">
-    <div class="card" style="margin-bottom:16px;border-left:4px solid #1a56db">
-        <div class="card-header">
-            <h3><i class="fas fa-align-left" style="color:#1a56db;margin-right:8px"></i>Passage / Teks Bacaan</h3>
-            <span class="badge badge-blue">Reading</span>
-        </div>
-        <div class="card-body">
-            <div class="form-group">
-                <label class="form-label">Teks Passage</label>
-                <textarea name="passage_teks" class="form-control" rows="6"
-                    placeholder="Masukkan teks bacaan / passage di sini...">{{ old('passage_teks') }}</textarea>
-                <div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">
-                    <i class="fas fa-info-circle"></i>
-                    Isi teks passage yang akan ditampilkan sebelum pertanyaan. Bisa satu passage untuk beberapa soal.
-                </div>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Group ID Passage</label>
-                <input type="text" name="group_id" class="form-control"
-                    value="{{ old('group_id') }}" placeholder="cth: passage_klimatologi_1"
-                    style="max-width:320px">
-                <div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">
-                    <i class="fas fa-link"></i>
-                    Gunakan Group ID yang sama untuk soal-soal dari satu passage yang sama.
-                </div>
-            </div>
+{{-- ══ PAGE 3: Form Input Soal (dynamic) ══ --}}
+<div class="page" id="p3">
+
+    {{-- Header breadcrumb section > tipe --}}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        <button onclick="goPage(2)" class="btn btn-outline btn-sm" style="padding:5px 10px">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <div>
+            <div style="font-size:11px;color:var(--muted)">Input Soal</div>
+            <div style="font-size:15px;font-weight:800" id="p3-breadcrumb">—</div>
         </div>
     </div>
-</div>
 
-{{-- ── SECTION LISTENING: Upload Audio ── --}}
-<div id="section-listening" style="display:none">
-    <div class="card" style="margin-bottom:16px;border-left:4px solid #ea580c">
-        <div class="card-header">
-            <h3><i class="fas fa-headphones-alt" style="color:#ea580c;margin-right:8px"></i>File Audio</h3>
-            <span class="badge badge-orange">Listening</span>
-        </div>
-        <div class="card-body">
+    <form action="{{ route('admin.soal.store') }}" method="POST"
+        enctype="multipart/form-data" id="main-form">
+        @csrf
+        <input type="hidden" name="kategori"  id="f-kategori">
+        <input type="hidden" name="tipe_soal" id="f-tipe-soal">
 
-            {{-- Drop zone upload --}}
-            <div id="audio-dropzone"
-                style="border:2px dashed #d1d5db;border-radius:12px;padding:32px;text-align:center;
-                       cursor:pointer;transition:all .2s;background:#fafafa;margin-bottom:16px"
-                onclick="document.getElementById('audio-file-input').click()"
-                ondragover="event.preventDefault();this.style.borderColor='#ea580c';this.style.background='#fff7ed'"
-                ondragleave="this.style.borderColor='#d1d5db';this.style.background='#fafafa'"
-                ondrop="handleDrop(event)">
-                <i class="fas fa-cloud-upload-alt" style="font-size:36px;color:#9ca3af;margin-bottom:12px;display:block"></i>
-                <div style="font-size:15px;font-weight:600;color:#374151;margin-bottom:6px">
-                    Drag & Drop file audio, atau klik untuk pilih
+        {{-- ── Metadata umum ── --}}
+        <div class="fc">
+            <div class="fc-title"><i class="fas fa-tag"></i> Metadata</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Tipe Paket <span style="color:var(--red)">*</span></label>
+                    <select name="tipe_paket" class="form-control" required>
+                        @foreach($tipePaket as $v=>$l)
+                        <option value="{{ $v }}">{{ $l }}</option>
+                        @endforeach
+                    </select>
                 </div>
-                <div style="font-size:12.5px;color:#9ca3af">
-                    Format: MP3, OGG, WAV, M4A — Maksimal 20MB
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Kesulitan</label>
+                    <select name="tingkat_kesulitan" class="form-control">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
                 </div>
-                <input type="file" id="audio-file-input" name="audio_file"
-                    accept="audio/*" style="display:none" onchange="handleFileSelect(this)">
+                <div class="form-group" style="margin:0" id="meta-nomor">
+                    <label class="form-label">No. Soal</label>
+                    <input type="number" name="nomor_soal" class="form-control"
+                        min="1" placeholder="1">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Skill / Materi</label>
+                    <input type="text" name="skill_materi" class="form-control"
+                        placeholder="cth: Main Idea">
+                </div>
             </div>
+        </div>
 
-            {{-- File info (muncul setelah pilih file) --}}
-            <div id="file-info" style="display:none;margin-bottom:16px">
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
-                    padding:14px 16px;display:flex;align-items:center;gap:14px">
-                    <i class="fas fa-file-audio" style="font-size:24px;color:#16a34a;flex-shrink:0"></i>
-                    <div style="flex:1">
-                        <div style="font-size:14px;font-weight:600;color:#15803d" id="file-name">-</div>
-                        <div style="font-size:12px;color:#16a34a" id="file-size">-</div>
+        {{-- ────────────────────────────────────────────────────────
+             FORM LISTENING: Best Response
+             ──────────────────────────────────────────────────────── --}}
+        <div id="form-listening-best_response" class="form-block" style="display:none">
+            <div class="hint">
+                🎧 <strong>Listening Best Response</strong> — Mahasiswa mendengar audio, lalu pilih respons terbaik.
+                Soal ini terhubung ke 1 audio paket penuh. Timestamp menentukan kapan soal muncul.
+            </div>
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-link"></i> Paket Audio</div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Pilih Audio Paket <span style="color:var(--red)">*</span></label>
+                    <select name="audio_paket_id" class="form-control">
+                        <option value="">-- Pilih paket audio --</option>
+                        @foreach($audioPaketList as $ap)
+                        <option value="{{ $ap->id }}">
+                            {{ $ap->nama }} ({{ $ap->soalList->count() }} soal · {{ $ap->durasi_format }})
+                        </option>
+                        @endforeach
+                    </select>
+                    <small style="color:var(--muted)">Belum ada paket?
+                        <a href="{{ route('admin.listening.create') }}" target="_blank">Upload audio dulu</a>
+                    </small>
+                </div>
+            </div>
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-clock"></i> Timeline</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Order / Urutan <span style="color:var(--red)">*</span></label>
+                        <input type="number" name="order_number" class="form-control"
+                            min="1" max="50" placeholder="1-50">
                     </div>
-                    <button type="button" onclick="clearFile()"
-                        style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:18px">
-                        <i class="fas fa-times-circle"></i>
-                    </button>
-                </div>
-            </div>
-
-            {{-- Preview Player (muncul setelah pilih file) --}}
-            <div id="audio-preview-wrap" style="display:none">
-                <label class="form-label" style="margin-bottom:8px">
-                    <i class="fas fa-play-circle" style="color:#ea580c"></i> Preview Audio
-                </label>
-                <div class="toefl-audio-wrap">
-                    <div class="tap-bar">
-                        <button type="button" class="tap-play-btn" id="btn-new-audio"
-                            onclick="tapToggle('new-audio')" aria-label="Play">
-                            <span class="tap-play-triangle" id="icon-new-audio"></span>
-                        </button>
-                        <div class="tap-track-outer" id="track-new-audio"
-                            onclick="tapSeek(event,'new-audio')">
-                            <div class="tap-track-inner">
-                                <div class="tap-track-fill" id="fill-new-audio" style="width:0%"></div>
-                            </div>
-                            <div class="tap-thumb" id="thumb-new-audio" style="left:0%"></div>
-                        </div>
-                        <span class="tap-time" id="time-new-audio">00:00</span>
-                        <button type="button" class="tap-vol-btn" onclick="tapToggleMute('new-audio')">
-                            <i class="fas fa-volume-up tap-vol-icon" id="volicon-new-audio"></i>
-                        </button>
-                        <audio id="aud-new-audio" data-mode="admin" preload="auto"
-                            oncanplay="tapOnCanPlay('new-audio')"
-                            ontimeupdate="tapOnTimeUpdate('new-audio')"
-                            onended="tapOnEnded('new-audio')">
-                        </audio>
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Start Second (detik) <span style="color:var(--red)">*</span></label>
+                        <input type="number" name="start_second" class="form-control"
+                            min="0" placeholder="cth: 80">
+                        <small style="color:var(--muted)">Soal muncul di detik ke-?</small>
                     </div>
-                    <div class="tap-status" id="status-new-audio">Klik ▶ untuk preview</div>
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Part</label>
+                        <select name="part" class="form-control">
+                            <option value="A">A — Short Dialogues (1-15)</option>
+                            <option value="B">B — Longer Conv. (16-30)</option>
+                            <option value="C">C — Mini Talks (31-50)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-
-        </div>
-    </div>
-</div>
-
-{{-- ── PERTANYAAN ── --}}
-<div class="card" style="margin-bottom:16px">
-    <div class="card-header">
-        <h3><i class="fas fa-question-circle" style="color:var(--accent);margin-right:8px"></i>Pertanyaan & Jawaban</h3>
-    </div>
-    <div class="card-body">
-        <div class="form-group">
-            <label class="form-label">Teks Pertanyaan <span style="color:var(--red)">*</span></label>
-            <textarea name="pertanyaan" class="form-control" required rows="3"
-                placeholder="Masukkan pertanyaan di sini...">{{ old('pertanyaan') }}</textarea>
-        </div>
-
-        {{-- Pilihan Jawaban --}}
-        <div style="background:var(--navy-light);border-radius:12px;padding:18px;margin-bottom:16px">
-            <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;
-                letter-spacing:.8px;margin-bottom:14px">
-                <i class="fas fa-list-ul"></i> Pilihan Jawaban
-            </div>
-            @foreach(['a','b','c','d'] as $opt)
-            @php
-                $colors = ['a'=>'#3b82f6','b'=>'#10b981','c'=>'#f59e0b','d'=>'#ef4444'];
-            @endphp
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-                <div style="width:32px;height:32px;border-radius:8px;background:{{ $colors[$opt] }};
-                    color:#fff;display:flex;align-items:center;justify-content:center;
-                    font-size:13px;font-weight:800;flex-shrink:0">
-                    {{ strtoupper($opt) }}
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-question-circle"></i> Soal</div>
+                <div class="form-group">
+                    <label class="form-label">Pertanyaan <span style="color:var(--red)">*</span></label>
+                    <textarea name="pertanyaan" class="form-control" rows="2" required
+                        placeholder="cth: What does the woman suggest the man do?"></textarea>
                 </div>
-                <input type="text" name="pilihan_{{ $opt }}" class="form-control"
-                    required placeholder="Masukkan pilihan {{ strtoupper($opt) }}..."
-                    value="{{ old('pilihan_'.$opt) }}" style="margin-bottom:0">
+                <div class="form-group">
+                    <label class="form-label">Gambar (opsional)</label>
+                    <input type="file" name="image" class="form-control" accept="image/*">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Script Audio <small style="color:var(--muted)">(hanya admin)</small></label>
+                    <textarea name="audio_script" class="form-control" rows="2"
+                        placeholder="Transkrip percakapan..."></textarea>
+                </div>
             </div>
-            @endforeach
+            @include('admin.soal.partials.form-pilihan-4', ['label'=>'Pilihan Respons A–D'])
+            @include('admin.soal.partials.form-kunci-abcd')
+            @include('admin.soal.partials.form-pembahasan')
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Jawaban Benar <span style="color:var(--red)">*</span></label>
-                <select name="jawaban_benar" class="form-control" required>
-                    @foreach(['a','b','c','d'] as $opt)
-                    <option value="{{ $opt }}" {{ old('jawaban_benar')===$opt?'selected':'' }}>
-                        Pilihan {{ strtoupper($opt) }}
-                    </option>
-                    @endforeach
-                </select>
+        {{-- ────────────────────────────────────────────────────────
+             FORM STRUCTURE: Best Response (Dialogue)
+             ──────────────────────────────────────────────────────── --}}
+        <div id="form-structure-best_response" class="form-block" style="display:none">
+            <div class="hint">
+                💬 <strong>Structure Best Response</strong> — Tampilkan dialog singkat + gambar karakter.
+                Mahasiswa pilih respons yang paling tepat (A/B/C/D).
             </div>
-            <div class="form-group" style="margin-bottom:0">
-                <label class="form-label">Pembahasan <span style="color:var(--text-muted);font-weight:400">(opsional)</span></label>
-                <textarea name="pembahasan" class="form-control" rows="2"
-                    placeholder="Jelaskan kenapa jawaban tersebut benar...">{{ old('pembahasan') }}</textarea>
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-comments"></i> Dialog</div>
+                <div class="form-group">
+                    <label class="form-label">Prompt / Kalimat Dialog <span style="color:var(--red)">*</span></label>
+                    <textarea name="pertanyaan" class="form-control" rows="2" required
+                        placeholder="cth: What was the highlight of your trip?"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Gambar Karakter (opsional)</label>
+                    <input type="file" name="image" class="form-control" accept="image/*">
+                    <small style="color:var(--muted)">Gambar orang yang berbicara (seperti di gambar contoh)</small>
+                </div>
             </div>
+            @include('admin.soal.partials.form-pilihan-4', ['label'=>'Pilihan Respons A–D'])
+            @include('admin.soal.partials.form-kunci-abcd')
+            @include('admin.soal.partials.form-pembahasan')
         </div>
-    </div>
+
+        {{-- ────────────────────────────────────────────────────────
+             FORM STRUCTURE: Arrange Sentence
+             ──────────────────────────────────────────────────────── --}}
+        <div id="form-structure-arrange_sentence" class="form-block" style="display:none">
+            <div class="hint">
+                🔀 <strong>Arrange Sentence</strong> — Mahasiswa menyusun kata-kata menjadi kalimat yang benar.
+                Tampilkan gambar karakter + blanks yang harus diisi.
+            </div>
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-sort"></i> Konten Soal</div>
+                <div class="form-group">
+                    <label class="form-label">Konteks / Prompt Dialog <span style="color:var(--red)">*</span></label>
+                    <textarea name="pertanyaan" class="form-control" rows="2" required
+                        placeholder="cth: What was the highlight of your trip? The ___ ___ ___ ___ ___ fantastic."></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Gambar (opsional)</label>
+                    <input type="file" name="image" class="form-control" accept="image/*">
+                </div>
+            </div>
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-puzzle-piece"></i> Kata-kata yang Disusun</div>
+                <div class="hint">
+                    Masukkan kata-kata yang tersedia satu per satu. Mahasiswa akan drag & drop atau klik untuk menyusunnya.
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tambah Kata</label>
+                    <div style="display:flex;gap:8px">
+                        <input type="text" id="word-input" class="form-control"
+                            placeholder="ketik kata, tekan Enter..."
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();addWord()}">
+                        <button type="button" onclick="addWord()" class="btn btn-outline btn-sm">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="words-chips" style="min-height:40px;padding:6px;
+                    background:var(--bg);border:1px solid var(--border);border-radius:8px"></div>
+                <input type="hidden" name="arrange_words" id="arrange-words-val">
+                <small style="color:var(--muted);font-size:11.5px">
+                    Kata-kata akan diacak urutannya saat ditampilkan ke mahasiswa
+                </small>
+            </div>
+            <div class="fc">
+                <div class="fc-title"><i class="fas fa-key"></i> Kalimat Jawaban Benar</div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Urutan kata yang benar <span style="color:var(--red)">*</span></label>
+                    <input type="text" name="jawaban_benar" class="form-control" required
+                        placeholder="cth: tour guides who showed us around the old city were fantastic">
+                    <small style="color:var(--muted)">Tulis kalimat lengkap yang benar</small>
+                    <input type="hidden" name="pilihan_a" value="-">
+                    <input type="hidden" name="pilihan_b" value="-">
+                    <input type="hidden" name="pilihan_c" value="-">
+                    <input type="hidden" name="pilihan_d" value="-">
+                </div>
+            </div>
+            @include('admin.soal.partials.form-pembahasan')
+        </div>
+
+        {{-- ── Tombol simpan ── --}}
+        <div style="display:flex;gap:10px;margin-top:6px" id="submit-wrap" style="display:none">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Simpan Soal
+            </button>
+            <button type="button" onclick="goPage(2)" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Kembali
+            </button>
+        </div>
+    </form>
 </div>
 
-{{-- ── ACTION BUTTONS ── --}}
-<div style="display:flex;gap:12px;align-items:center">
-    <button type="submit" class="btn btn-primary" style="padding:12px 32px;font-size:15px">
-        <i class="fas fa-save"></i> Simpan Soal
-    </button>
-    <a href="{{ route('admin.soal.index') }}" class="btn btn-outline" style="padding:12px 24px">
-        <i class="fas fa-times"></i> Batal
-    </a>
-    <span style="font-size:12.5px;color:var(--text-muted);margin-left:4px">
-        <i class="fas fa-info-circle"></i> Field bertanda * wajib diisi
-    </span>
-</div>
-
-</form>
-</div>
 @endsection
 
 @push('scripts')
 <script>
-// ── Kategori change handler ──────────────────────────────────
-const PARTS = {
-    listening: [['A','Part A (Short Conversations)'],['B','Part B (Longer Conversations)'],['C','Part C (Talks)']],
-    structure: [['A','Part A (Structure)'],['B','Part B (Written Expression)']],
-    reading:   [],
+// ── Data tipe soal dari PHP ──
+const TIPE_PER_SECTION = @json($tipeSoal);
+
+const SEC_META = {
+    reading:   { label: '📖 Reading',   icon: '📖' },
+    listening: { label: '🎧 Listening', icon: '🎧' },
+    structure: { label: '✏️ Structure', icon: '✏️' },
 };
-function onKategoriChange() {
-    const val     = document.getElementById('kat-sel').value;
-    const partSel = document.getElementById('part-sel');
-    const opts    = PARTS[val] || [];
-    partSel.innerHTML = '<option value="">-- Pilih Part --</option>' +
-        opts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
-    document.getElementById('section-reading').style.display   = val === 'reading'   ? 'block' : 'none';
-    document.getElementById('section-listening').style.display = val === 'listening' ? 'block' : 'none';
+
+let curSection = null;
+let curTipe    = null;
+
+// ── Navigasi halaman ──
+function goPage(n) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('show'));
+    document.getElementById('p' + n).classList.add('show');
+    [1,2,3].forEach(i => {
+        const s = document.getElementById('s' + i);
+        s.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
 }
 
-// Jalankan saat halaman load (untuk old value setelah validasi gagal)
-document.addEventListener('DOMContentLoaded', function() {
-    onKategoriChange();
-});
+// ── Step 1: Pilih section ──
+function pilihSection(sec) {
+    curSection = sec;
+    document.getElementById('v-section').value  = sec;
+    document.getElementById('f-kategori').value = sec;
+    document.querySelectorAll('.sec-card').forEach(c => c.classList.remove('on'));
+    event.currentTarget.classList.add('on');
 
-// ── Audio file handling ──────────────────────────────────────
-function handleFileSelect(input) {
-    if (!input.files || !input.files[0]) return;
-    showFileInfo(input.files[0]);
-    loadAudioPreview(input.files[0]);
-}
+    const note = document.getElementById('reading-note');
 
-function handleDrop(event) {
-    event.preventDefault();
-    const dz = document.getElementById('audio-dropzone');
-    dz.style.borderColor = '#d1d5db';
-    dz.style.background  = '#fafafa';
-    const files = event.dataTransfer.files;
-    if (!files.length) return;
-    const file = files[0];
-    if (!file.type.startsWith('audio/')) {
-        alert('File harus berupa audio (MP3, OGG, WAV, M4A)');
-        return;
+    if (sec === 'reading') {
+        note.style.display = 'block';
+        return; // Reading pakai sistem passage terpisah
     }
-    // Set ke input file
-    const dt  = new DataTransfer();
-    dt.items.add(file);
-    const inp = document.getElementById('audio-file-input');
-    inp.files = dt.files;
-    showFileInfo(file);
-    loadAudioPreview(file);
+    note.style.display = 'none';
+
+    // Render tipe soal untuk section ini
+    renderTypeCards(sec);
+    setTimeout(() => goPage(2), 200);
 }
 
-function showFileInfo(file) {
-    const mb = (file.size / 1024 / 1024).toFixed(2);
-    document.getElementById('file-name').textContent = file.name;
-    document.getElementById('file-size').textContent = mb + ' MB';
-    document.getElementById('file-info').style.display = 'block';
+function renderTypeCards(sec) {
+    const container = document.getElementById('type-grid');
+    const label     = document.getElementById('p2-sec-label');
+    label.textContent = SEC_META[sec]?.label || sec;
+    container.innerHTML = '';
+
+    const types = TIPE_PER_SECTION[sec] || {};
+    Object.entries(types).forEach(([key, lbl]) => {
+        const [ico, ...rest] = lbl.split(' ');
+        const name = rest.join(' ');
+        const desc = getTipeDesc(key);
+        container.innerHTML += `
+        <div class="type-card" id="tc-${key}" onclick="pilihTipe('${key}')">
+            <div class="tc-ico">${ico}</div>
+            <div>
+                <div class="tc-name">${name}</div>
+                <div class="tc-desc">${desc}</div>
+            </div>
+        </div>`;
+    });
 }
 
-function loadAudioPreview(file) {
-    const aud = document.getElementById('aud-new-audio');
-    if (!aud) return;
-    aud.src = URL.createObjectURL(file);
-    aud.load();
-    document.getElementById('audio-preview-wrap').style.display = 'block';
-    document.getElementById('status-new-audio').textContent = 'Klik ▶ untuk preview';
+function getTipeDesc(key) {
+    const d = {
+        'best_response':     'Pilih respons terbaik dari 4 pilihan',
+        'arrange_sentence':  'Susun kata-kata menjadi kalimat yang benar',
+        'multiple_choice':   'Pilih 1 jawaban dari 4 pilihan',
+        'vocabulary':        'Kata di-highlight → pilih sinonim/makna',
+        'insert_sentence':   'Pilih posisi kalimat yang tepat di teks',
+        'click_sentence':    'Klik kalimat yang paling tepat di teks',
+        'prose_summary':     'Pilih 3 dari 6 pernyataan yang benar',
+        'fill_missing_letters': 'Isi huruf/kata yang hilang di paragraf',
+        'email_reading':     'Baca email → jawab pertanyaan',
+        'academic_passage':  'Baca teks akademik → jawab pertanyaan',
+    };
+    return d[key] || '—';
 }
 
-function clearFile() {
-    document.getElementById('audio-file-input').value = '';
-    document.getElementById('file-info').style.display = 'none';
-    document.getElementById('audio-preview-wrap').style.display = 'none';
-    const aud = document.getElementById('aud-new-audio');
-    if (aud) { aud.pause(); aud.src = ''; }
-    // Reset dropzone
-    document.getElementById('audio-dropzone').style.borderColor = '#d1d5db';
-    document.getElementById('audio-dropzone').style.background  = '#fafafa';
-}
+// ── Step 2: Pilih tipe ──
+function pilihTipe(tipe) {
+    curTipe = tipe;
+    document.getElementById('v-tipe').value      = tipe;
+    document.getElementById('f-tipe-soal').value = tipe;
+    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('on'));
+    document.getElementById('tc-' + tipe)?.classList.add('on');
 
-// ── Form validation ──────────────────────────────────────────
-document.getElementById('soal-form').addEventListener('submit', function(e) {
-    const kat = document.getElementById('kat-sel').value;
-    if (!kat) {
-        e.preventDefault();
-        alert('Pilih kategori soal terlebih dahulu.');
-        return;
+    // Sembunyikan semua form block
+    document.querySelectorAll('.form-block').forEach(f => f.style.display = 'none');
+
+    // Tampilkan form sesuai section + tipe
+    const formId = `form-${curSection}-${tipe}`;
+    const formEl = document.getElementById(formId);
+    if (formEl) {
+        formEl.style.display = 'block';
+    } else {
+        // Fallback: generic form
+        document.getElementById('form-generic')?.style.setProperty('display','block');
     }
-});
+
+    // Update breadcrumb
+    const secLabel  = SEC_META[curSection]?.label || curSection;
+    const tipeLabel = document.getElementById('tc-' + tipe)?.querySelector('.tc-name')?.textContent || tipe;
+    document.getElementById('p3-breadcrumb').textContent = secLabel + ' → ' + tipeLabel;
+
+    // Tampilkan submit button
+    document.getElementById('submit-wrap').style.display = 'flex';
+
+    setTimeout(() => goPage(3), 200);
+}
+
+// ── Arrange sentence: tambah kata ──
+let wordsList = [];
+function addWord() {
+    const inp = document.getElementById('word-input');
+    const w = inp.value.trim();
+    if (!w) return;
+    wordsList.push(w);
+    inp.value = '';
+    renderChips();
+    inp.focus();
+}
+function removeWord(i) {
+    wordsList.splice(i, 1);
+    renderChips();
+}
+function renderChips() {
+    const container = document.getElementById('words-chips');
+    container.innerHTML = wordsList.map((w,i) =>
+        `<span class="word-chip" draggable="true">
+            ${w} <span class="rm" onclick="removeWord(${i})">×</span>
+        </span>`
+    ).join('');
+    document.getElementById('arrange-words-val').value = JSON.stringify(wordsList);
+}
+
+// ── Written Expression preview (jika ada) ──
+function previewWE(val) {
+    const el = document.getElementById('we-prev');
+    if (!el) return;
+    if (!val.trim()) { el.style.display = 'none'; return; }
+    let html = val.replace(/\[([^\]]+)\]\(([A-D])\)/g,
+        '<u style="color:#93c5fd">$1</u>(<strong style="color:#fbbf24">$2</strong>)');
+    el.innerHTML = html;
+    el.style.display = 'block';
+}
 </script>
 @endpush

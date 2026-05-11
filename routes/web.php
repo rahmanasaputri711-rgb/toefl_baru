@@ -105,9 +105,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/pendaftaran/{id}/batal', [\App\Http\Controllers\User\PendaftaranTesController::class, 'batal'])->name('user.pendaftaran.batal');
 
     // Hasil & Riwayat
-    Route::get('/hasil',            [\App\Http\Controllers\User\HasilController::class, 'index'])->name('user.hasil.index');
-    Route::get('/hasil/{id}',       [\App\Http\Controllers\User\HasilController::class, 'detail'])->name('user.hasil.detail');
-    Route::get('/hasil/{id}/cetak', [\App\Http\Controllers\User\HasilController::class, 'cetak'])->name('user.hasil.cetak');
+    // Hasil, Riwayat, Grafik — 3 halaman BERBEDA (bukan sama)
+    Route::get('/hasil',             [\App\Http\Controllers\User\HasilController::class, 'index'])->name('user.hasil.index');
+    Route::get('/riwayat',           [\App\Http\Controllers\User\HasilController::class, 'riwayat'])->name('user.hasil.riwayat');
+    Route::get('/grafik',            [\App\Http\Controllers\User\HasilController::class, 'grafik'])->name('user.hasil.grafik');
+    Route::get('/hasil/{id}',        [\App\Http\Controllers\User\HasilController::class, 'detail'])->name('user.hasil.detail');
+    Route::get('/hasil/{id}/cetak',  [\App\Http\Controllers\User\HasilController::class, 'cetak'])->name('user.hasil.cetak');
 
     // Profil
     Route::get('/profil', [\App\Http\Controllers\User\ProfilController::class, 'index'])->name('user.profil');
@@ -129,8 +132,57 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 
+    // ── Paket Builder ──
+    Route::prefix('paket-builder')->name('paket-builder.')->group(function() {
+        Route::get ('/',                                       [\App\Http\Controllers\Admin\PaketBuilderController::class, 'index'])->name('index');
+        Route::get ('/create',                                 [\App\Http\Controllers\Admin\PaketBuilderController::class, 'createPaket'])->name('create');
+        Route::post('/',                                       [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storePaket'])->name('store');
+        Route::get ('/paket/{paketId}',                        [\App\Http\Controllers\Admin\PaketBuilderController::class, 'showPaket'])->name('paket');
+        Route::post('/paket/{paketId}/selesaikan',             [\App\Http\Controllers\Admin\PaketBuilderController::class, 'selesaikanPaket'])->name('selesaikan');
+        Route::post('/paket/{paketId}/grup',                   [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeGrup'])->name('grup.store');
+        Route::get ('/paket/{paketId}/grup/{grupId}/modul/create',[\App\Http\Controllers\Admin\PaketBuilderController::class, 'createModul'])->name('modul.create');
+        Route::post('/paket/{paketId}/grup/{grupId}/modul',    [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeModul'])->name('modul.store');
+        Route::get ('/modul/{modulId}/input',                  [\App\Http\Controllers\Admin\PaketBuilderController::class, 'inputModul'])->name('modul.input');
+        Route::delete('/modul/{modulId}',                      [\App\Http\Controllers\Admin\PaketBuilderController::class, 'destroyModul'])->name('modul.destroy');
+        Route::post('/modul/{modulId}/passage',                [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storePassage'])->name('modul.passage');
+        Route::post('/modul/{modulId}/soal-passage',           [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeSoalPassage'])->name('modul.soal-passage');
+        Route::post('/modul/{modulId}/missing-letters',        [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeMissingLetters'])->name('modul.missing-letters');
+        Route::post('/modul/{modulId}/image-email',            [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeImageEmail'])->name('modul.image-email');
+        Route::post('/modul/{modulId}/soal-listening',         [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeSoalListening'])->name('modul.soal-listening');
+        Route::post('/modul/{modulId}/upload-gambar',          [\App\Http\Controllers\Admin\PaketBuilderController::class, 'uploadGambar'])->name('modul.upload-gambar');
+        Route::get ('/paket/{paketId}/preview',[\App\Http\Controllers\Admin\PaketBuilderController::class, 'previewPaket'])->name('preview');
+        Route::delete('/soal/{soalId}',                        [\App\Http\Controllers\Admin\PaketBuilderController::class, 'destroySoal'])->name('soal.destroy');
+    });
+
+    // ── Reading Builder ──
+    Route::prefix('reading-builder')->name('reading-builder.')->group(function() {
+        Route::get ('/',                                [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'index'])->name('index');
+        Route::get ('/paket/{paketId}',                [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'showPaket'])->name('paket');
+        Route::post('/paket/{paketId}/selesaikan',     [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'selesaikanPaket'])->name('selesaikan');
+        Route::get ('/paket/{paketId}/modul/create',   [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'createModul'])->name('modul.create');
+        Route::post('/paket/{paketId}/modul',          [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'storeModul'])->name('modul.store');
+        Route::get ('/modul/{modulId}/input',          [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'inputModul'])->name('modul.input');
+        Route::delete('/modul/{modulId}',              [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'destroyModul'])->name('modul.destroy');
+        Route::post('/modul/{modulId}/passage',        [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'storePassage'])->name('modul.passage');
+        Route::post('/modul/{modulId}/soal-passage',   [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'storeSoalPassage'])->name('modul.soal-passage');
+        Route::post('/modul/{modulId}/missing-letters',[\App\Http\Controllers\Admin\ReadingBuilderController::class, 'storeMissingLetters'])->name('modul.missing-letters');
+        Route::post('/modul/{modulId}/image-email',    [\App\Http\Controllers\Admin\ReadingBuilderController::class, 'storeImageEmail'])->name('modul.image-email');
+    });
+
+    // ── Listening Audio Paket ──
+    Route::get   ('listening',               [\App\Http\Controllers\Admin\ListeningController::class, 'index'])->name('listening.index');
+    Route::get   ('listening/create',        [\App\Http\Controllers\Admin\ListeningController::class, 'create'])->name('listening.create');
+    Route::post  ('listening',               [\App\Http\Controllers\Admin\ListeningController::class, 'store'])->name('listening.store');
+    Route::get   ('listening/{id}',          [\App\Http\Controllers\Admin\ListeningController::class, 'show'])->name('listening.show');
+    Route::post  ('listening/{id}/soal',     [\App\Http\Controllers\Admin\ListeningController::class, 'storeSoal'])->name('listening.storeSoal');
+    Route::post  ('listening/{id}/durasi',   [\App\Http\Controllers\Admin\ListeningController::class, 'updateDurasi'])->name('listening.updateDurasi');
+    Route::delete('listening/soal/{soalId}', [\App\Http\Controllers\Admin\ListeningController::class, 'destroySoal'])->name('listening.destroySoal');
+    Route::delete('listening/{id}',          [\App\Http\Controllers\Admin\ListeningController::class, 'destroy'])->name('listening.destroy');
+
     // Bank Soal
     Route::get   ('soal',              [\App\Http\Controllers\Admin\BankSoalController::class, 'index'])->name('soal.index');
+    Route::get   ('soal/group',         function() { return view('admin.soal.group'); })->name('soal.group');
+    Route::get   ('soal/modul-list',    function() { return view('admin.soal.modul'); })->name('soal.modul');
     Route::get   ('soal/create',       [\App\Http\Controllers\Admin\BankSoalController::class, 'create'])->name('soal.create');
     Route::post  ('soal',              [\App\Http\Controllers\Admin\BankSoalController::class, 'store'])->name('soal.store');
     Route::get   ('soal/{id}/edit',    [\App\Http\Controllers\Admin\BankSoalController::class, 'edit'])->name('soal.edit');
@@ -149,6 +201,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('grup-soal/{id}',      [\App\Http\Controllers\Admin\GrupSoalController::class, 'destroy'])->name('grup.destroy');
 
     // Paket Soal
+    // ── Reading Passages ──
+    Route::get   ('passage',               [\App\Http\Controllers\Admin\PassageController::class, 'index'])->name('passage.index');
+    Route::get   ('passage/create',        [\App\Http\Controllers\Admin\PassageController::class, 'create'])->name('passage.create');
+    Route::post  ('passage',               [\App\Http\Controllers\Admin\PassageController::class, 'store'])->name('passage.store');
+    Route::get   ('passage/{id}',          [\App\Http\Controllers\Admin\PassageController::class, 'show'])->name('passage.show');
+    Route::get   ('passage/{id}/edit',    [\App\Http\Controllers\Admin\PassageController::class, 'edit'])->name('passage.edit');
+    Route::put   ('passage/{id}',          [\App\Http\Controllers\Admin\PassageController::class, 'update'])->name('passage.update');
+    Route::delete('passage/{id}',          [\App\Http\Controllers\Admin\PassageController::class, 'destroy'])->name('passage.destroy');
+    Route::post  ('passage/{id}/soal',    [\App\Http\Controllers\Admin\PassageController::class, 'storeSoal'])->name('passage.storeSoal');
+    Route::delete('passage/soal/{soalId}',[\App\Http\Controllers\Admin\PassageController::class, 'destroySoal'])->name('passage.destroySoal');
     Route::get   ('paket-soal',                 [\App\Http\Controllers\Admin\PaketSoalController::class, 'index'])->name('paket.index');
     Route::get   ('paket-soal/create',           [\App\Http\Controllers\Admin\PaketSoalController::class, 'create'])->name('paket.create');
     Route::post  ('paket-soal',                  [\App\Http\Controllers\Admin\PaketSoalController::class, 'store'])->name('paket.store');
@@ -209,6 +271,17 @@ Route::post  ('sesi/peserta/{id}/reset', [\App\Http\Controllers\Admin\SesiTesCon
     Route::get ('laporan/cari',             [\App\Http\Controllers\Admin\LaporanController::class, 'cariNomor'])->name('laporan.cari');
     Route::post('laporan/cari',             [\App\Http\Controllers\Admin\LaporanController::class, 'cariNomor']);
     Route::get ('laporan/{sesiId}/export',  [\App\Http\Controllers\Admin\LaporanController::class, 'exportExcel'])->name('laporan.export');
+
+    // Passage (Reading Parent-Child)
+    Route::get   ('soal/passage/create',     [\App\Http\Controllers\Admin\PassageController::class, 'create'])->name('admin.soal.passage.create');
+    Route::post  ('soal/passage',            [\App\Http\Controllers\Admin\PassageController::class, 'store'])->name('admin.soal.passage.store');
+    Route::get   ('soal/passage/{id}/edit',  [\App\Http\Controllers\Admin\PassageController::class, 'edit'])->name('admin.soal.passage.edit');
+    Route::put   ('soal/passage/{id}',       [\App\Http\Controllers\Admin\PassageController::class, 'update'])->name('admin.soal.passage.update');
+    Route::delete('soal/passage/{id}',       [\App\Http\Controllers\Admin\PassageController::class, 'destroy'])->name('admin.soal.passage.destroy');
+
+    // Konversi Skor TOEFL ITP
+    Route::get ('konversi-skor',      [\App\Http\Controllers\Admin\KonversiSkorController::class, 'index'])->name('admin.konversi-skor.index');
+    Route::post('konversi-skor/bulk', [\App\Http\Controllers\Admin\KonversiSkorController::class, 'storeBulk'])->name('admin.konversi-skor.bulk');
 
     // Evaluasi
     Route::get   ('evaluasi',              [\App\Http\Controllers\Admin\EvaluasiController::class, 'index'])->name('evaluasi.index');
