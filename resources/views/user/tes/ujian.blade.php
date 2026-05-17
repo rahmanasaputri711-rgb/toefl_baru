@@ -420,11 +420,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
       <div class="ns-grid" id="nav-grid">
         {{-- Listening: semua soal BISA diklik (audio tetap jalan terus) --}}
         @foreach($soalList as $i=>$s)
+        @php $sid = ($s->soal ?? $s)->id ?? 0; @endphp
         <button class="nv {{ $i===0?'active':'' }}"
             data-idx="{{ $i }}"
+            data-soal-id="{{ $sid }}"
             id="nav-btn-{{ $i }}"
             onclick="goSoal({{ $i }})"
-            title="Soal {{ $i+1 }}">
+            title="Soal {{ $i+1 }}{{ isset($startSeconds[$sid]) ? ' — detik '.($startSeconds[$sid]) : '' }}">
           {{ $i+1 }}
         </button>
         @endforeach
@@ -658,6 +660,10 @@ const TOTAL        = {{ count($soalList) }};
 const SECTION      = '{{ $currentSection }}';
 const TIPE_TES     = '{{ $tipeTes ?? "full" }}'; // full | simulasi | mini | praktik
 const IS_FULL_TES  = TIPE_TES === 'full';         // full = aturan ketat audio
+
+// ── Data start_second per soal (untuk sinkronisasi) ──────────
+// key = soal_id, value = detik audio soal muncul
+const START_SECONDS = @json($startSeconds ?? []);
 const IS_LISTEN    = SECTION === 'listening';
 const DURASI_INIT  = {{ $durasiDetik }};
 const PERCOBAAN_ID = {{ $percobaan->id }};
@@ -1250,6 +1256,48 @@ function onGlobalTick() {
     if (timeEl) {
         const fmt = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
         timeEl.textContent = fmt(cur) + ' / ' + fmt(dur);
+    }
+
+    // ── Sinkronisasi soal dengan timeline audio ────────────────
+    if (IS_LISTEN && Object.keys(START_SECONDS).length > 0) {
+        syncSoalWithAudio(cur);
+    }
+}
+
+// Sinkronisasi: cari soal yang start_second-nya paling dekat dengan waktu audio
+let _lastSyncIdx = -1;
+function syncSoalWithAudio(curSec) {
+    // soalList di view urut by urutan (idx 0, 1, 2 ...)
+    // Cari idx soal yang seharusnya aktif sekarang berdasarkan start_second
+    let activeIdx = 0;
+    const soalEls = document.querySelectorAll('#nav-grid button[data-idx]');
+
+    soalEls.forEach(btn => {
+        const idx    = parseInt(btn.dataset.idx);
+        const soalId = btn.dataset.soalId; // akan ditambah di HTML
+        if (!soalId || !START_SECONDS[soalId]) return;
+        const startSec = START_SECONDS[soalId];
+        if (curSec >= startSec) activeIdx = idx;
+    });
+
+    if (activeIdx !== _lastSyncIdx) {
+        _lastSyncIdx = activeIdx;
+        // Tandai nomor yang sedang berjalan sesuai audio (audio-live badge)
+        soalEls.forEach(btn => {
+            btn.classList.remove('audio-live');
+        });
+        const liveBtn = document.querySelector('#nav-grid button[data-idx="'+activeIdx+'"]');
+        if (liveBtn) {
+            liveBtn.classList.add('audio-live');
+            // Scroll nav ke nomor aktif
+            liveBtn.scrollIntoView({behavior:'smooth',block:'nearest'});
+        }
+        // Auto-pindah ke soal yang sesuai audio (jika belum ada jawaban di soal tsb)
+        // CATATAN: user tetap bisa klik nomor lain — ini hanya highlight
+        const statusActive = statusSoal[activeIdx] ?? 'belum';
+        if (statusActive === 'belum') {
+            goSoal(activeIdx);
+        }
     }
 }
 

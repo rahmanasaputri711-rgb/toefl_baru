@@ -86,7 +86,7 @@ class PaketBuilderController extends Controller
         $grup  = GrupSoal::findOrFail($grupId);
 
         $request->validate([
-            'tipe_modul'         => 'required|in:passage,missing_letters,image_email,conversation,lecture,discussion,short_talk',
+            'tipe_modul'         => 'required|in:passage,missing_letters,image_email,conversation,lecture,discussion,short_talk,best_response,arrange_sentence',
             'nomor_soal_mulai'   => 'required|integer|min:1',
             'nomor_soal_selesai' => 'required|integer|gte:nomor_soal_mulai',
         ]);
@@ -135,6 +135,9 @@ class PaketBuilderController extends Controller
         if ($modul->isListening()) {
             $audioPaketList = \App\Models\ListeningAudioPaket::where('is_aktif',1)->get();
             return view('admin.paket-builder.input.listening', compact('modul','audioPaketList'));
+        }
+        if ($modul->isStructure()) {
+            return view('admin.paket-builder.input.structure', compact('modul'));
         }
         return match($modul->tipe_modul) {
             'passage'         => view('admin.paket-builder.input.passage',         compact('modul')),
@@ -352,6 +355,40 @@ class PaketBuilderController extends Controller
              'teks'=>'','image_url'=>$path,'tipe_paket'=>'full','is_aktif'=>true]
         );
         return response()->json(['ok'=>true,'url'=>asset('storage/'.$path),'msg'=>'Gambar diupload.']);
+    }
+
+    public function storeSoalStructure(Request $request, $modulId) {
+        $modul = ModulSoal::findOrFail($modulId);
+        if (!$request->filled('pertanyaan'))
+            return response()->json(['ok'=>false,'msg'=>'Pertanyaan tidak boleh kosong.']);
+        if (!$request->filled('nomor_dalam_paket'))
+            return response()->json(['ok'=>false,'msg'=>'Nomor soal wajib diisi.']);
+
+        $tipe = $request->tipe_soal ?? 'best_response';
+        if ($tipe==='best_response' && !$request->filled('jawaban_benar'))
+            return response()->json(['ok'=>false,'msg'=>'Pilih jawaban benar.']);
+
+        if (BankSoal::where('paket_id',$modul->paket_id)
+            ->where('nomor_dalam_paket',$request->nomor_dalam_paket)->exists())
+            return response()->json(['ok'=>false,'msg'=>"No.{$request->nomor_dalam_paket} sudah ada."]);
+
+        BankSoal::create([
+            'modul_id'=>$modul->id,'paket_id'=>$modul->paket_id,
+            'nomor_dalam_paket'=>(int)$request->nomor_dalam_paket,
+            'nomor_soal'=>(int)$request->nomor_dalam_paket,
+            'kategori'=>'structure','tipe_paket'=>'full','tipe_soal'=>$tipe,
+            'sub_bagian'=>$request->sub_bagian ?? 'completion',
+            'pertanyaan'=>$request->pertanyaan,
+            'pilihan_a'=>$request->pilihan_a??'-','pilihan_b'=>$request->pilihan_b??'-',
+            'pilihan_c'=>$request->pilihan_c??'-','pilihan_d'=>$request->pilihan_d??'-',
+            'jawaban_benar'=>$request->jawaban_benar??'-',
+            'arrange_words'=>$request->arrange_words,
+            'pembahasan'=>$request->pembahasan,
+            'tingkat_kesulitan'=>$request->tingkat_kesulitan??'medium',
+            'is_aktif'=>true,'created_by'=>auth()->id(),
+        ]);
+        $modul->update(['is_selesai'=>BankSoal::where('modul_id',$modul->id)->count()>=$modul->jumlah_target]);
+        return response()->json(['ok'=>true,'msg'=>"Soal No.{$request->nomor_dalam_paket} disimpan."]);
     }
 
     // ══ DELETE SOAL ═══════════════════════════════════════════════

@@ -65,7 +65,7 @@ class SesiTesController extends Controller
         // 1. Validasi field dasar
         $request->validate([
             'judul'       => 'required|string|max:255',
-            'tipe_tes'    => 'required|in:full,simulasi,mini',
+            'tipe_tes'    => 'required|in:full', // Sesi hanya untuk Tes Full
             'waktu_mulai' => 'required|date',
             'kuota_peserta' => 'nullable|integer|min:1|max:500',
         ]);

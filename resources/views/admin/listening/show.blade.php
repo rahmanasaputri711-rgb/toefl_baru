@@ -1,106 +1,107 @@
 @extends('layouts.admin')
-@section('title', 'Kelola Soal — '.$paket->nama)
-@section('page-title', 'Listening: '.$paket->nama)
+@section('title', 'Listening — '.$paket->nama)
+@section('page-title', $paket->nama)
 @section('breadcrumb', 'Admin / Listening / Kelola Soal')
 
 @push('styles')
 <style>
-/* ─── Layout 2 kolom ─── */
-.ls-wrap{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}
-@media(max-width:900px){.ls-wrap{grid-template-columns:1fr}}
+/* ─── Layout ─── */
+.ls-wrap{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
 
-/* ─── Audio Player Custom ─── */
-.audio-panel{background:linear-gradient(135deg,#1a1a3e,#0f0f2e);
-    border:1px solid rgba(234,88,12,.3);border-radius:16px;padding:22px;margin-bottom:20px}
-.ap-title{font-size:13px;font-weight:700;color:#fb923c;margin-bottom:14px;
-    display:flex;align-items:center;gap:8px}
-.ap-waveform{height:48px;background:rgba(255,255,255,.05);border-radius:8px;
-    position:relative;overflow:hidden;margin-bottom:12px;cursor:pointer}
-.ap-waveform-fill{position:absolute;top:0;left:0;height:100%;
-    background:linear-gradient(90deg,rgba(234,88,12,.3),rgba(251,146,60,.2));
-    width:0%;transition:width .1s linear;pointer-events:none}
-.ap-waveform-cursor{position:absolute;top:0;width:2px;height:100%;
-    background:#fb923c;left:0%;transition:left .1s linear;pointer-events:none}
+/* ─── Audio Panel ─── */
+.audio-panel{background:linear-gradient(135deg,#0f1a2e,#0a1628);
+    border:1px solid rgba(234,88,12,.25);border-radius:16px;padding:20px;margin-bottom:16px}
+.ap-title{font-size:12px;font-weight:700;color:#fb923c;margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.5px}
 
-/* Marker soal di waveform */
-.ap-marker{position:absolute;top:0;width:3px;height:100%;
-    background:rgba(34,197,94,.7);cursor:pointer;transition:background .15s}
-.ap-marker:hover{background:#4ade80}
-.ap-marker-label{position:absolute;top:2px;left:4px;font-size:9px;
-    color:#4ade80;font-weight:700;white-space:nowrap}
+/* Waveform container */
+#waveform-container{position:relative;height:64px;background:rgba(255,255,255,.03);
+    border-radius:8px;overflow:hidden;cursor:pointer;margin-bottom:12px;
+    border:1px solid rgba(255,255,255,.06)}
+#waveform-bg{position:absolute;inset:0;display:flex;align-items:center;
+    gap:1px;padding:4px 2px}
+.wv-bar{flex:1;background:rgba(251,146,60,.25);border-radius:1px;
+    transition:background .1s;min-width:2px}
+#waveform-progress{position:absolute;top:0;left:0;height:100%;
+    background:rgba(234,88,12,.2);transition:width .1s linear;pointer-events:none}
+#waveform-cursor{position:absolute;top:0;width:2px;height:100%;
+    background:#fb923c;pointer-events:none;transition:left .1s linear}
+.wv-marker{position:absolute;top:0;height:100%;width:2px;cursor:pointer}
+.wv-marker-start{background:rgba(34,197,94,.8)}
+.wv-marker-end{background:rgba(239,68,68,.8)}
+.wv-marker-label{position:absolute;top:2px;left:4px;font-size:9px;
+    font-weight:700;white-space:nowrap}
 
-.ap-controls{display:flex;align-items:center;gap:12px}
-.ap-btn{width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:14px}
-.ap-btn-play{background:#fb923c;color:#fff}
-.ap-btn-play:hover{background:#ea580c;transform:scale(1.05)}
-.ap-btn-sm{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:12px}
-.ap-btn-sm:hover{background:rgba(255,255,255,.2)}
-.ap-time{font-family:monospace;font-size:14px;color:#fb923c;font-weight:700;margin-left:4px}
-.ap-duration{font-family:monospace;font-size:13px;color:rgba(255,255,255,.4)}
-.ap-speed{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
-    color:rgba(255,255,255,.7);border-radius:6px;padding:4px 8px;
+/* Controls */
+.ap-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ap-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s}
+.ap-play{background:#fb923c;color:#fff}
+.ap-play:hover{background:#ea580c;transform:scale(1.05)}
+.ap-sm{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);font-size:11px}
+.ap-sm:hover{background:rgba(255,255,255,.14)}
+.ap-time{font-family:monospace;font-size:14px;font-weight:700;color:#fb923c}
+.ap-dur{font-family:monospace;font-size:12px;color:rgba(255,255,255,.3)}
+.ap-speed{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+    color:rgba(255,255,255,.6);border-radius:6px;padding:4px 8px;
     font-size:12px;font-family:inherit;cursor:pointer}
 
-/* Tombol capture timestamp */
-.btn-capture{background:rgba(234,88,12,.2);color:#fb923c;
-    border:1.5px solid rgba(234,88,12,.4);border-radius:8px;
-    padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;
-    font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:8px}
-.btn-capture:hover{background:rgba(234,88,12,.35)}
-.btn-capture.pulse{animation:capturePulse .6s ease}
-@keyframes capturePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05);background:rgba(234,88,12,.5)}}
+/* Set marker buttons */
+.btn-set{padding:7px 14px;border-radius:7px;border:none;cursor:pointer;
+    font-family:inherit;font-size:12px;font-weight:700;transition:all .15s;
+    display:flex;align-items:center;gap:6px}
+.btn-start{background:rgba(34,197,94,.2);color:#4ade80;border:1.5px solid rgba(34,197,94,.35)}
+.btn-start:hover{background:rgba(34,197,94,.3)}
+.btn-end{background:rgba(239,68,68,.2);color:#f87171;border:1.5px solid rgba(239,68,68,.35)}
+.btn-end:hover{background:rgba(239,68,68,.3)}
 
-/* ─── Form tambah soal ─── */
-.soal-form-card{background:var(--navy-light);border:1px solid var(--border);
+/* Marker display */
+.marker-row{display:flex;gap:10px;margin-top:10px}
+.marker-box{flex:1;background:rgba(255,255,255,.04);border-radius:8px;padding:8px 12px;
+    border:1px solid rgba(255,255,255,.08)}
+.marker-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);margin-bottom:3px}
+.marker-val{font-family:monospace;font-size:16px;font-weight:900}
+
+/* ─── Form soal ─── */
+.soal-form{background:var(--navy-light);border:1px solid var(--border);
     border-radius:14px;padding:20px}
-.soal-form-card h4{font-size:14px;font-weight:700;margin-bottom:14px;
-    display:flex;align-items:center;gap:8px}
+.kunci-row{display:flex;gap:6px}
+.kunci-lbl{flex:1;text-align:center;padding:9px;border-radius:8px;
+    border:2px solid var(--border);cursor:pointer;font-weight:800;
+    font-size:14px;transition:all .15s;user-select:none;background:transparent}
+.kunci-lbl.on{background:var(--green);border-color:var(--green);color:#fff}
 
-/* Timestamp display */
-.ts-display{background:rgba(234,88,12,.1);border:1.5px solid rgba(234,88,12,.3);
-    border-radius:8px;padding:8px 14px;font-family:monospace;font-size:18px;
-    font-weight:900;color:#fb923c;text-align:center;letter-spacing:2px}
-
-/* ─── Daftar soal ─── */
-.soal-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;
-    margin-bottom:8px;transition:border-color .15s}
-.soal-item:hover{border-color:var(--accent)}
-.soal-item.playing{border-color:#fb923c;background:rgba(234,88,12,.04)}
-.soal-header{display:flex;align-items:center;gap:10px;padding:10px 14px;
-    background:var(--navy-light);cursor:pointer}
-.soal-num{width:26px;height:26px;border-radius:50%;background:var(--blue);
-    color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;
-    justify-content:center;flex-shrink:0}
-.soal-ts{font-family:monospace;font-size:12px;font-weight:700;
-    color:#fb923c;flex-shrink:0;background:rgba(234,88,12,.1);
-    padding:2px 8px;border-radius:5px}
-.soal-q{font-size:13px;flex:1;min-width:0;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.8)}
-.soal-body{display:none;padding:12px 14px 14px;border-top:1px solid var(--border)}
-.soal-body.open{display:block}
-.pilihan-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px}
-.pilihan-letter{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);
-    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
-.pilihan-letter.benar{background:var(--green);border-color:var(--green);color:#fff}
+/* ─── Soal list ─── */
+.soal-item{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;
+    border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.soal-item:hover{background:rgba(255,255,255,.02)}
+.soal-item.active{background:rgba(234,88,12,.06);border-left:3px solid #fb923c}
+.soal-item:last-child{border-bottom:none}
+.si-no{width:28px;height:28px;border-radius:7px;background:#fb923c;color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px}
+.timeline-bar{height:4px;border-radius:2px;margin-top:6px;
+    background:rgba(255,255,255,.1);overflow:hidden}
+.timeline-fill{height:100%;border-radius:2px;
+    background:linear-gradient(90deg,#10b981,#fb923c,#ef4444)}
 </style>
 @endpush
 
 @section('content')
 
-{{-- Header info paket --}}
-<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
     <a href="{{ route('admin.listening.index') }}" class="btn btn-outline btn-sm">
         <i class="fas fa-arrow-left"></i>
     </a>
     <div>
-        <div style="font-size:18px;font-weight:800">{{ $paket->nama }}</div>
+        <div style="font-size:17px;font-weight:800">{{ $paket->nama }}</div>
         <div style="font-size:13px;color:var(--muted)">
             <span style="background:rgba(26,86,219,.15);color:var(--accent);
-                padding:1px 8px;border-radius:5px;font-size:11px;font-weight:600">
+                padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600">
                 {{ strtoupper($paket->tipe_paket) }}
             </span>
-            &nbsp; {{ $soalList->count() }} soal dari 50
+            &nbsp; {{ $soalList->count() }} soal
             @if($paket->durasi_detik > 0)
             &nbsp;·&nbsp; {{ $paket->durasi_format }}
             @endif
@@ -108,326 +109,337 @@
     </div>
 </div>
 
+<div id="alert-box" style="display:none;margin-bottom:14px"></div>
+
 <div class="ls-wrap">
 
-{{-- ════ KOLOM KIRI: Audio + Form Tambah Soal ════ --}}
+{{-- ═══ KIRI ═══ --}}
 <div>
-    {{-- ── Audio Player ── --}}
-    <div class="audio-panel">
-        <div class="ap-title">
-            <i class="fas fa-headphones"></i> Audio Listening
-            <span style="font-size:11px;opacity:.6;margin-left:4px">
-                (Admin mode: speed & seek tersedia untuk input soal)
-            </span>
-        </div>
 
-        {{-- Waveform / progress bar dengan marker soal --}}
-        <div class="ap-waveform" id="ap-waveform" onclick="seekAudio(event)">
-            <div class="ap-waveform-fill" id="ap-fill"></div>
-            <div class="ap-waveform-cursor" id="ap-cursor"></div>
-            {{-- Marker soal akan dirender JS --}}
-        </div>
-
-        {{-- Controls --}}
-        <div class="ap-controls">
-            <button class="ap-btn ap-btn-play" id="btn-play" onclick="togglePlay()">
-                <i class="fas fa-play" id="play-ico"></i>
-            </button>
-            <button class="ap-btn ap-btn-sm" onclick="skipAudio(-10)" title="-10 detik">
-                <i class="fas fa-undo" style="font-size:11px"></i> 10s
-            </button>
-            <button class="ap-btn ap-btn-sm" onclick="skipAudio(10)" title="+10 detik">
-                10s <i class="fas fa-redo" style="font-size:11px"></i>
-            </button>
-            <span class="ap-time" id="ap-time">0:00</span>
-            <span class="ap-duration" id="ap-dur">/ --:--</span>
-            <div style="flex:1"></div>
-            <select class="ap-speed" id="ap-speed" onchange="changeSpeed(this.value)">
-                <option value="0.5">0.5×</option>
-                <option value="0.75">0.75×</option>
-                <option value="1" selected>1×</option>
-                <option value="1.25">1.25×</option>
-                <option value="1.5">1.5×</option>
-            </select>
-        </div>
-
-        {{-- Audio element (admin bisa pause/seek untuk input soal) --}}
-        <audio id="main-audio" src="{{ $paket->audio_url_full }}"
-            preload="metadata" style="display:none"
-            ontimeupdate="onTick()"
-            onloadedmetadata="onAudioReady()">
-        </audio>
-
-        {{-- Tombol capture timestamp --}}
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)">
-            <div style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px">
-                Putar audio → pause di posisi soal muncul → klik tombol di bawah
-            </div>
-            <button class="btn-capture" id="btn-capture" onclick="captureTimestamp()">
-                <i class="fas fa-crosshairs"></i>
-                Ambil Timestamp Sekarang
-                <span id="capture-ts" style="font-family:monospace;font-size:15px;
-                    background:rgba(0,0,0,.3);padding:2px 8px;border-radius:5px">0:00</span>
-            </button>
-        </div>
+{{-- Audio Player --}}
+<div class="audio-panel">
+    <div class="ap-title">
+        <i class="fas fa-waveform-path"></i>
+        Audio Listening — Mode Admin
+        <span style="font-size:10px;opacity:.5;margin-left:4px;text-transform:none">
+            (speed & seek tersedia untuk kemudahan input)
+        </span>
     </div>
 
-    {{-- ── Form Tambah Soal ── --}}
-    <div class="soal-form-card" id="form-wrap">
-        <h4>
-            <i class="fas fa-plus-circle" style="color:var(--green)"></i>
-            Tambah Soal Listening
-            <span id="form-nomor-badge" style="background:rgba(26,86,219,.15);color:var(--accent);
-                padding:2px 10px;border-radius:20px;font-size:12px">
-                No. {{ $soalList->count() + 1 }}
-            </span>
-        </h4>
+    {{-- Waveform --}}
+    <div id="waveform-container" onclick="seekByClick(event)">
+        <div id="waveform-bg"></div>
+        <div id="waveform-progress" style="width:0%"></div>
+        <div id="waveform-cursor" style="left:0%"></div>
+        {{-- Markers dirender JS --}}
+    </div>
 
-        {{-- Alert --}}
-        <div id="form-alert" style="display:none"></div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-            {{-- Nomor urut --}}
-            <div class="form-group" style="margin:0">
-                <label class="form-label" style="font-size:12px">No. Urut</label>
-                <input type="number" id="inp-order" class="form-control" style="font-size:14px"
-                    min="1" max="50" value="{{ $soalList->count() + 1 }}">
-            </div>
-            {{-- Part --}}
-            <div class="form-group" style="margin:0">
-                <label class="form-label" style="font-size:12px">Part</label>
-                <select id="inp-part" class="form-control" style="font-size:13px">
-                    <option value="A">A — Short Dialogues</option>
-                    <option value="B">B — Longer Conv.</option>
-                    <option value="C">C — Mini Talks</option>
-                </select>
-            </div>
-            {{-- Group ID --}}
-            <div class="form-group" style="margin:0">
-                <label class="form-label" style="font-size:12px">Group ID
-                    <small style="color:var(--muted)">(Part B/C)</small>
-                </label>
-                <input type="text" id="inp-group" class="form-control"
-                    style="font-size:13px" placeholder="cth: conv-01">
-            </div>
-        </div>
-
-        {{-- Timestamp --}}
-        <div class="form-group">
-            <label class="form-label" style="font-size:12px">
-                Timestamp (detik soal muncul)
-                <span style="color:var(--red)">*</span>
-            </label>
-            <div style="display:flex;gap:8px;align-items:center">
-                <div class="ts-display" id="ts-display">0:00</div>
-                <input type="number" id="inp-start-second" class="form-control"
-                    style="font-family:monospace;font-size:15px;font-weight:700;width:90px"
-                    min="0" placeholder="detik" oninput="updateTsDisplay(this.value)">
-                <span style="font-size:12px;color:var(--muted)">detik</span>
-            </div>
-            <div style="font-size:11.5px;color:var(--muted);margin-top:5px">
-                <i class="fas fa-info-circle"></i>
-                Putar audio → pause → klik <strong>"Ambil Timestamp"</strong> untuk isi otomatis
-            </div>
-        </div>
-
-        {{-- Pertanyaan --}}
-        <div class="form-group">
-            <label class="form-label" style="font-size:12px">
-                Pertanyaan <span style="color:var(--red)">*</span>
-            </label>
-            <textarea id="inp-pertanyaan" class="form-control" rows="2"
-                placeholder="cth: What does the woman suggest the man do?"></textarea>
-        </div>
-
-        {{-- Script audio --}}
-        <div class="form-group">
-            <label class="form-label" style="font-size:12px">
-                Script Audio
-                <small style="color:var(--muted)">— opsional, hanya terlihat admin</small>
-            </label>
-            <textarea id="inp-script" class="form-control" rows="2"
-                placeholder="Transkrip percakapan untuk referensi..."></textarea>
-        </div>
-
-        {{-- Pilihan jawaban --}}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-            @foreach(['a'=>'A','b'=>'B','c'=>'C','d'=>'D'] as $k=>$l)
-            <div class="form-group" style="margin:0">
-                <label class="form-label" style="font-size:12px">Pilihan {{ $l }}</label>
-                <input type="text" id="inp-pilihan-{{ $k }}" class="form-control"
-                    placeholder="Isi pilihan {{ $l }}...">
-            </div>
-            @endforeach
-        </div>
-
-        {{-- Kunci jawaban --}}
-        <div class="form-group">
-            <label class="form-label" style="font-size:12px">
-                Kunci Jawaban <span style="color:var(--red)">*</span>
-            </label>
-            <div style="display:flex;gap:8px">
-                @foreach(['a'=>'A','b'=>'B','c'=>'C','d'=>'D'] as $k=>$l)
-                <label style="flex:1;display:flex;align-items:center;justify-content:center;
-                    gap:6px;padding:9px;border-radius:8px;border:2px solid var(--border);
-                    cursor:pointer;font-weight:700;font-size:15px;transition:all .15s"
-                    id="kunci-label-{{ $k }}"
-                    onclick="pilihKunci('{{ $k }}')">
-                    <input type="radio" name="kunci-jawaban" value="{{ $k }}"
-                        style="display:none" id="kunci-{{ $k }}">
-                    {{ $l }}
-                </label>
-                @endforeach
-            </div>
-        </div>
-
-        {{-- Skill / Kesulitan --}}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-            <div class="form-group" style="margin:0">
-                <label class="form-label" style="font-size:12px">Kesulitan</label>
-                <select id="inp-difficulty" class="form-control" style="font-size:13px">
-                    <option value="easy">Easy</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="hard">Hard</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin:0">
-                <label class="form-label" style="font-size:12px">Skill / Materi</label>
-                <input type="text" id="inp-skill" class="form-control"
-                    style="font-size:13px" placeholder="cth: Inference, Detail">
-            </div>
-        </div>
-
-        {{-- Tombol simpan --}}
-        <button onclick="simpanSoal()" id="btn-simpan" class="btn btn-primary"
-            style="width:100%">
-            <i class="fas fa-save"></i> Simpan Soal No. <span id="btn-nomor">{{ $soalList->count() + 1 }}</span>
+    {{-- Controls --}}
+    <div class="ap-controls">
+        <button class="ap-btn ap-play" id="btn-play" onclick="togglePlay()">
+            <i class="fas fa-play" id="play-ico"></i>
         </button>
+        <button class="ap-btn ap-sm" onclick="skipAudio(-5)" title="-5s">
+            <i class="fas fa-backward-step"></i>5s
+        </button>
+        <button class="ap-btn ap-sm" onclick="skipAudio(5)" title="+5s">
+            5s<i class="fas fa-forward-step"></i>
+        </button>
+        <span class="ap-time" id="ap-time">0:00</span>
+        <span class="ap-dur" id="ap-dur">/ --:--</span>
+        <div style="flex:1"></div>
+        <select class="ap-speed" onchange="audio.playbackRate=parseFloat(this.value)">
+            <option value=".5">0.5×</option>
+            <option value=".75">0.75×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.25">1.25×</option>
+        </select>
+    </div>
+
+    <audio id="main-audio" src="{{ $paket->audio_url_full }}"
+        preload="metadata" style="display:none"
+        onloadedmetadata="onAudioReady()"
+        ontimeupdate="onTick()">
+    </audio>
+
+    {{-- Set Marker buttons --}}
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
+        <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-bottom:8px">
+            Putar audio → pause → klik tombol untuk set marker percakapan
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-set btn-start" onclick="setMarker('start')">
+                <i class="fas fa-play"></i> Set Start
+                <span id="lbl-start" style="font-family:monospace;
+                    background:rgba(0,0,0,.3);padding:1px 7px;border-radius:4px">
+                    --:--
+                </span>
+            </button>
+            <button class="btn-set btn-end" onclick="setMarker('end')">
+                <i class="fas fa-stop"></i> Set End
+                <span id="lbl-end" style="font-family:monospace;
+                    background:rgba(0,0,0,.3);padding:1px 7px;border-radius:4px">
+                    --:--
+                </span>
+            </button>
+        </div>
+
+        <div class="marker-row">
+            <div class="marker-box">
+                <div class="marker-lbl" style="color:#4ade80">▶ Conversation Start</div>
+                <div class="marker-val" id="disp-start" style="color:#4ade80">--:--</div>
+                <div style="font-size:11px;color:var(--muted)" id="disp-start-s">0 detik</div>
+            </div>
+            <div class="marker-box">
+                <div class="marker-lbl" style="color:#f87171">■ Conversation End</div>
+                <div class="marker-val" id="disp-end" style="color:#f87171">--:--</div>
+                <div style="font-size:11px;color:var(--muted)" id="disp-end-s">0 detik</div>
+            </div>
+            <div class="marker-box">
+                <div class="marker-lbl" style="color:#fb923c">⏸ Pause Duration</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+                    <input type="number" id="inp-pause" value="15" min="5" max="60"
+                        style="width:56px;font-family:monospace;font-size:15px;font-weight:900;
+                        background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+                        border-radius:6px;padding:3px 6px;color:#fb923c;text-align:center"
+                        oninput="updateResumeCalc()">
+                    <span style="font-size:12px;color:var(--muted)">detik</span>
+                </div>
+            </div>
+        </div>
+
+        {{-- Session resume preview --}}
+        <div id="resume-preview" style="display:none;margin-top:10px;
+            background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);
+            border-radius:8px;padding:10px 14px;font-size:12.5px;line-height:1.9">
+            <div style="color:#a78bfa;font-weight:700;margin-bottom:4px">
+                📊 Virtual Timeline Preview
+            </div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap">
+                <span>▶ Audio start:
+                    <strong id="prev-start" style="color:#4ade80;font-family:monospace">--:--</strong>
+                </span>
+                <span>■ Audio end:
+                    <strong id="prev-end" style="color:#f87171;font-family:monospace">--:--</strong>
+                </span>
+                <span>⏸ Pause:
+                    <strong id="prev-pause" style="color:#fb923c;font-family:monospace">15s</strong>
+                </span>
+                <span>▶ Resume at:
+                    <strong id="prev-resume" style="color:#a78bfa;font-family:monospace">--:--</strong>
+                </span>
+            </div>
+        </div>
     </div>
 </div>
 
-{{-- ════ KOLOM KANAN: Daftar Soal ════ --}}
+{{-- Form tambah soal --}}
+<div class="soal-form">
+    <div style="font-size:14px;font-weight:700;margin-bottom:16px;
+        display:flex;align-items:center;gap:8px">
+        <i class="fas fa-plus-circle" style="color:var(--green)"></i>
+        Tambah Soal
+        <span id="soal-nomor-badge" style="background:rgba(26,86,219,.15);
+            color:var(--accent);padding:2px 10px;border-radius:20px;font-size:12px">
+            No. {{ $soalList->count() + 1 }}
+        </span>
+    </div>
+
+    <div id="form-alert" style="display:none;margin-bottom:12px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:11.5px">No. Urut</label>
+            <input type="number" id="inp-order" class="form-control"
+                style="font-size:14px" min="1"
+                value="{{ $soalList->count() + 1 }}">
+        </div>
+        <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:11.5px">Part</label>
+            <select id="inp-part" class="form-control" style="font-size:13px">
+                <option value="A">A — Short Dialogues</option>
+                <option value="B">B — Longer Conv.</option>
+                <option value="C">C — Mini Talks</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" style="font-size:11.5px">Pertanyaan *</label>
+        <textarea id="inp-q" class="form-control" rows="2"
+            placeholder="cth: What does the woman suggest?"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" style="font-size:11.5px">
+            Script Audio
+            <small style="color:var(--muted)">(opsional, hanya admin)</small>
+        </label>
+        <textarea id="inp-script" class="form-control" rows="2"
+            placeholder="Transkrip percakapan..."></textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        @foreach(['a'=>'A','b'=>'B','c'=>'C','d'=>'D'] as $k=>$l)
+        <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:11.5px">Pilihan {{ $l }}</label>
+            <input type="text" id="inp-p{{ $k }}" class="form-control"
+                placeholder="Pilihan {{ $l }}">
+        </div>
+        @endforeach
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" style="font-size:11.5px">Jawaban Benar *</label>
+        <div class="kunci-row">
+            @foreach(['a'=>'A','b'=>'B','c'=>'C','d'=>'D'] as $k=>$l)
+            <label class="kunci-lbl" id="kl-{{ $k }}"
+                onclick="pilihKunci('{{ $k }}')">{{ $l }}</label>
+            @endforeach
+        </div>
+    </div>
+
+    <button onclick="simpan()" id="btn-save" class="btn btn-primary" style="width:100%">
+        <i class="fas fa-save"></i> Simpan Soal
+    </button>
+</div>
+
+</div>
+
+{{-- ═══ KANAN: Daftar Soal ═══ --}}
 <div style="position:sticky;top:20px">
     <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-list-ol" style="color:var(--accent);margin-right:8px"></i>
-                Daftar Soal
+        <div class="card-header" style="padding:12px 16px">
+            <h3 style="font-size:13px">
+                <i class="fas fa-list-ol" style="color:#fb923c;margin-right:6px"></i>
+                Timeline Soal
             </h3>
-            <span id="jumlah-badge" style="font-size:12.5px;color:var(--muted)">
-                {{ $soalList->count() }} / 50
+            <span style="font-size:12px;color:var(--muted)">
+                {{ $soalList->count() }} soal
             </span>
         </div>
 
-        <div style="max-height:calc(100vh - 200px);overflow-y:auto" id="soal-list-wrap">
-            @forelse($soalList as $s)
-            <div class="soal-item" id="soal-item-{{ $s->id }}"
-                data-second="{{ $s->start_second }}">
-                <div class="soal-header" onclick="toggleSoalBody({{ $s->id }})">
-                    <div class="soal-num">{{ $s->order_number }}</div>
-                    <div class="soal-ts" onclick="event.stopPropagation();seekToSecond({{ $s->start_second }})">
-                        {{ sprintf('%d:%02d', intdiv($s->start_second,60), $s->start_second%60) }}
-                    </div>
-                    <div class="soal-q">{{ $s->pertanyaan }}</div>
-                    <button onclick="event.stopPropagation();hapusSoal({{ $s->id }})"
-                        style="background:none;border:none;color:var(--muted);cursor:pointer;
-                        padding:2px 6px;border-radius:4px;font-size:12px"
-                        title="Hapus">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="soal-body" id="body-{{ $s->id }}">
-                    @foreach(['a'=>'A','b'=>'B','c'=>'C','d'=>'D'] as $k=>$l)
-                    <div class="pilihan-row">
-                        <div class="pilihan-letter {{ $s->jawaban_benar === $k ? 'benar' : '' }}">
-                            {{ $l }}
-                        </div>
-                        <span style="{{ $s->jawaban_benar === $k ? 'color:var(--green);font-weight:700' : '' }}">
-                            {{ $s->{'pilihan_'.$k} }}
+        {{-- Info header --}}
+        <div style="padding:8px 16px;background:rgba(234,88,12,.05);
+            border-bottom:1px solid var(--border);
+            font-size:11px;color:var(--muted);
+            display:grid;grid-template-columns:28px 52px 52px 52px 1fr;gap:4px">
+            <span>#</span>
+            <span style="color:#4ade80">▶ Start</span>
+            <span style="color:#f87171">■ End</span>
+            <span style="color:#a78bfa">↩ Resume</span>
+            <span>Pertanyaan</span>
+        </div>
+
+        <div id="soal-list" style="max-height:70vh;overflow-y:auto">
+            @forelse($soalList->sortBy('order_number') as $s)
+            @php
+                $dur = $paket->durasi_detik ?: 1;
+                $widthPct = $dur > 0
+                    ? (($s->audio_end - $s->start_second) / $dur * 100)
+                    : 0;
+                $startPct = $dur > 0 ? ($s->start_second / $dur * 100) : 0;
+            @endphp
+            <div class="soal-item" id="si-{{ $s->id }}"
+                onclick="seekTo({{ $s->start_second }})">
+                <div class="si-no">{{ $s->order_number }}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="display:grid;grid-template-columns:52px 52px 52px 1fr;
+                        gap:4px;font-size:11.5px;margin-bottom:5px">
+                        <span style="color:#4ade80;font-family:monospace">
+                            {{ sprintf('%d:%02d', intdiv($s->start_second,60), $s->start_second%60) }}
+                        </span>
+                        <span style="color:#f87171;font-family:monospace">
+                            {{ sprintf('%d:%02d', intdiv($s->audio_end??0,60), ($s->audio_end??0)%60) }}
+                        </span>
+                        <span style="color:#a78bfa;font-family:monospace">
+                            {{ sprintf('%d:%02d', intdiv($s->session_resume_time??0,60), ($s->session_resume_time??0)%60) }}
+                        </span>
+                        <span style="color:rgba(255,255,255,.7);white-space:nowrap;
+                            overflow:hidden;text-overflow:ellipsis">
+                            {{ mb_strimwidth($s->pertanyaan??'',0,30,'...') }}
                         </span>
                     </div>
-                    @endforeach
-                    @if($s->audio_script)
-                    <div style="margin-top:8px;padding:8px;background:rgba(0,0,0,.2);
-                        border-radius:6px;font-size:12px;color:var(--muted);font-style:italic">
-                        <i class="fas fa-align-left" style="font-size:10px"></i>
-                        {{ $s->audio_script }}
+                    {{-- Timeline bar --}}
+                    <div class="timeline-bar" style="position:relative">
+                        <div class="timeline-fill"
+                            style="margin-left:{{ $startPct }}%;width:{{ $widthPct }}%"></div>
                     </div>
-                    @endif
+                    <div style="font-size:10.5px;color:var(--muted);margin-top:3px">
+                        Pause {{ $s->pause_duration??15 }}s
+                        &nbsp;·&nbsp; Jwb: {{ strtoupper($s->jawaban_benar??'-') }}
+                    </div>
                 </div>
+                <button onclick="event.stopPropagation();hapusSoal({{ $s->id }})"
+                    style="background:none;border:none;color:var(--muted);
+                    cursor:pointer;font-size:11px;padding:2px 4px;flex-shrink:0">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             @empty
-            <div id="empty-state" style="padding:32px;text-align:center;color:var(--muted);font-size:13px">
-                <i class="fas fa-plus-circle" style="font-size:28px;display:block;margin-bottom:10px"></i>
-                Belum ada soal. Tambah soal pertama menggunakan form di sebelah kiri.
+            <div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">
+                <i class="fas fa-clock" style="font-size:26px;display:block;margin-bottom:8px;opacity:.3"></i>
+                Belum ada soal. Set marker lalu tambah soal.
             </div>
             @endforelse
         </div>
 
-        {{-- Progress footer --}}
-        @php $pct = min(100, ($soalList->count() / 50) * 100); @endphp
-        <div style="padding:12px 16px;border-top:1px solid var(--border)">
+        {{-- Progress --}}
+        @php $pct = min(100,($soalList->count()/50)*100) @endphp
+        <div style="padding:10px 16px;border-top:1px solid var(--border)">
             <div style="display:flex;justify-content:space-between;
-                font-size:12px;color:var(--muted);margin-bottom:5px">
+                font-size:11.5px;color:var(--muted);margin-bottom:4px">
                 <span>Progress</span>
-                <span id="progress-text">{{ $soalList->count() }} / 50</span>
+                <span>{{ $soalList->count() }} / 50</span>
             </div>
-            <div style="height:5px;background:var(--border);border-radius:3px">
-                <div id="progress-fill" style="height:5px;border-radius:3px;
-                    width:{{ $pct }}%;
-                    background:{{ $pct >= 100 ? 'var(--green)' : 'var(--accent)' }};
-                    transition:width .4s"></div>
+            <div style="height:4px;background:var(--border);border-radius:2px">
+                <div style="height:4px;border-radius:2px;width:{{ $pct }}%;
+                    background:{{ $pct>=100?'var(--green)':'#fb923c' }}"></div>
             </div>
         </div>
     </div>
 </div>
 
-</div>{{-- end ls-wrap --}}
+</div>
 @endsection
 
 @push('scripts')
 <script>
-const PAKET_ID   = {{ $paket->id }};
-const CSRF_TOKEN = '{{ csrf_token() }}';
-let soalCount    = {{ $soalList->count() }};
-let selectedKey  = null;
+const PAKET_ID  = {{ $paket->id }};
+const CSRF      = '{{ csrf_token() }}';
+const audio     = document.getElementById('main-audio');
+let   curKunci  = null;
+let   markerStart = null;
+let   markerEnd   = null;
+let   audioDur    = 0;
 
-// ═══════════════════════════════════════════
-// AUDIO PLAYER
-// ═══════════════════════════════════════════
-const audio  = document.getElementById('main-audio');
-const fill   = document.getElementById('ap-fill');
-const cursor = document.getElementById('ap-cursor');
-const timeEl = document.getElementById('ap-time');
-const durEl  = document.getElementById('ap-dur');
-
+// ══ Audio player ══════════════════════════════════════════════
 function onAudioReady() {
-    const dur = audio.duration;
-    durEl.textContent = '/ ' + fmtTime(dur);
+    audioDur = audio.duration;
+    document.getElementById('ap-dur').textContent = '/ ' + fmtTime(audioDur);
+    generateWaveform();
+    renderMarkers();
 
     // Update durasi ke server
     fetch(`/admin/listening/${PAKET_ID}/durasi`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json','X-CSRF-TOKEN':CSRF_TOKEN},
-        body: JSON.stringify({durasi_detik: Math.round(dur)}),
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':CSRF},
+        body: JSON.stringify({durasi_detik: Math.round(audioDur)}),
     });
-
-    // Render marker soal di waveform
-    renderMarkers(dur);
 }
 
 function onTick() {
     const cur = audio.currentTime;
-    const dur = audio.duration || 1;
-    const pct = (cur / dur) * 100;
-    fill.style.width   = pct + '%';
-    cursor.style.left  = pct + '%';
-    timeEl.textContent = fmtTime(cur);
+    document.getElementById('ap-time').textContent  = fmtTime(cur);
+    document.getElementById('ap-dur').textContent   = '/ ' + fmtTime(audioDur);
+    document.getElementById('lbl-start').textContent = fmtTime(cur);
+    document.getElementById('lbl-end').textContent   = fmtTime(cur);
 
-    // Update capture button display
-    document.getElementById('capture-ts').textContent = fmtTime(cur);
-
-    // Highlight soal yang sedang aktif
-    highlightActiveSoal(cur);
+    // Update progress
+    const pct = audioDur > 0 ? (cur/audioDur)*100 : 0;
+    document.getElementById('waveform-progress').style.width = pct + '%';
+    document.getElementById('waveform-cursor').style.left    = pct + '%';
+    document.getElementById('ap-time').textContent = fmtTime(cur);
 }
 
 function togglePlay() {
@@ -440,130 +452,121 @@ function togglePlay() {
     }
 }
 
-function seekAudio(e) {
-    const rect = document.getElementById('ap-waveform').getBoundingClientRect();
-    const pct  = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = pct * audio.duration;
+function seekByClick(e) {
+    if (!audioDur) return;
+    const rect = document.getElementById('waveform-container').getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audioDur;
 }
 
-function seekToSecond(s) {
-    audio.currentTime = s;
+function seekTo(sec) {
+    audio.currentTime = sec;
     if (audio.paused) audio.play();
     document.getElementById('play-ico').className = 'fas fa-pause';
 }
 
 function skipAudio(s) {
-    audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + s));
-}
-
-function changeSpeed(v) {
-    audio.playbackRate = parseFloat(v);
+    audio.currentTime = Math.max(0, Math.min(audioDur, audio.currentTime + s));
 }
 
 function fmtTime(s) {
     if (!s || isNaN(s)) return '0:00';
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60);
-    return m + ':' + String(sec).padStart(2,'0');
+    return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
 }
 
-// ═══════════════════════════════════════════
-// MARKERS DI WAVEFORM
-// ═══════════════════════════════════════════
-function renderMarkers(dur) {
-    const wf = document.getElementById('ap-waveform');
-    // Hapus marker lama
-    wf.querySelectorAll('.ap-marker').forEach(m => m.remove());
-
-    document.querySelectorAll('.soal-item').forEach(item => {
-        const sec = parseInt(item.dataset.second || 0);
-        const pct = (sec / dur) * 100;
-        const mk  = document.createElement('div');
-        mk.className = 'ap-marker';
-        mk.style.left = pct + '%';
-        mk.title = 'Soal: ' + fmtTime(sec);
-        mk.onclick = (e) => { e.stopPropagation(); seekToSecond(sec); };
-        wf.appendChild(mk);
-    });
-}
-
-function highlightActiveSoal(cur) {
-    let activeId = null;
-    document.querySelectorAll('.soal-item').forEach(item => {
-        const sec = parseInt(item.dataset.second || 0);
-        item.classList.remove('playing');
-        if (sec <= cur) activeId = item.id;
-    });
-    if (activeId) {
-        const el = document.getElementById(activeId);
-        if (el) el.classList.add('playing');
+// ══ Waveform ══════════════════════════════════════════════════
+function generateWaveform() {
+    const container = document.getElementById('waveform-bg');
+    container.innerHTML = '';
+    const bars = Math.min(200, Math.floor(audioDur));
+    for (let i = 0; i < bars; i++) {
+        const h = 20 + Math.sin(i * 0.4) * 8 + Math.random() * 24;
+        const bar = document.createElement('div');
+        bar.className = 'wv-bar';
+        bar.style.height = h + '%';
+        container.appendChild(bar);
     }
 }
 
-// ═══════════════════════════════════════════
-// CAPTURE TIMESTAMP
-// ═══════════════════════════════════════════
-function captureTimestamp() {
-    const sec = Math.round(audio.currentTime);
-    document.getElementById('inp-start-second').value = sec;
-    document.getElementById('ts-display').textContent = fmtTime(sec);
+function renderMarkers() {
+    // Hapus marker lama
+    document.querySelectorAll('.wv-marker').forEach(m => m.remove());
+    if (!audioDur) return;
 
-    // Animasi tombol
-    const btn = document.getElementById('btn-capture');
-    btn.classList.add('pulse');
-    setTimeout(() => btn.classList.remove('pulse'), 600);
+    const wf = document.getElementById('waveform-container');
 
-    // Focus ke field pertanyaan
-    document.getElementById('inp-pertanyaan').focus();
+    // Marker dari soal tersimpan
+    @foreach($soalList as $s)
+    addMarkerEl(wf, {{ $s->start_second }}, 'wv-marker-start', 'No.{{ $s->order_number }}');
+    addMarkerEl(wf, {{ $s->audio_end ?? 0 }}, 'wv-marker-end', '');
+    @endforeach
+
+    // Marker aktif
+    if (markerStart !== null) addMarkerEl(wf, markerStart, 'wv-marker-start', '▶');
+    if (markerEnd   !== null) addMarkerEl(wf, markerEnd,   'wv-marker-end',   '■');
 }
 
-function updateTsDisplay(val) {
-    const sec = parseInt(val) || 0;
-    document.getElementById('ts-display').textContent = fmtTime(sec);
+function addMarkerEl(container, sec, cls, label) {
+    const pct = (sec / audioDur) * 100;
+    const el  = document.createElement('div');
+    el.className = 'wv-marker ' + cls;
+    el.style.left = pct + '%';
+    el.title = fmtTime(sec);
+    if (label) {
+        const lbl = document.createElement('div');
+        lbl.className = 'wv-marker-label';
+        lbl.textContent = label;
+        lbl.style.color = cls.includes('start') ? '#4ade80' : '#f87171';
+        el.appendChild(lbl);
+    }
+    el.onclick = (e) => { e.stopPropagation(); seekTo(sec); };
+    container.appendChild(el);
 }
 
-// ═══════════════════════════════════════════
-// KUNCI JAWABAN
-// ═══════════════════════════════════════════
+// ══ Marker ════════════════════════════════════════════════════
+function setMarker(type) {
+    const sec = Math.round(audio.currentTime * 10) / 10;
+    if (type === 'start') {
+        markerStart = sec;
+        document.getElementById('disp-start').textContent   = fmtTime(sec);
+        document.getElementById('disp-start-s').textContent = sec + ' detik';
+    } else {
+        markerEnd = sec;
+        document.getElementById('disp-end').textContent   = fmtTime(sec);
+        document.getElementById('disp-end-s').textContent = sec + ' detik';
+    }
+    updateResumeCalc();
+    renderMarkers();
+}
+
+function updateResumeCalc() {
+    if (markerStart === null || markerEnd === null) return;
+    const pause   = parseInt(document.getElementById('inp-pause').value) || 15;
+    const resume  = markerEnd + pause;
+    document.getElementById('prev-start').textContent  = fmtTime(markerStart);
+    document.getElementById('prev-end').textContent    = fmtTime(markerEnd);
+    document.getElementById('prev-pause').textContent  = pause + 's';
+    document.getElementById('prev-resume').textContent = fmtTime(resume);
+    document.getElementById('resume-preview').style.display = 'block';
+}
+
+// ══ Kunci jawaban ══════════════════════════════════════════════
 function pilihKunci(k) {
-    selectedKey = k;
+    curKunci = k;
     ['a','b','c','d'].forEach(x => {
-        const lbl = document.getElementById('kunci-label-' + x);
-        lbl.style.background   = x === k ? 'var(--green)'  : 'transparent';
-        lbl.style.borderColor  = x === k ? 'var(--green)'  : 'var(--border)';
-        lbl.style.color        = x === k ? '#fff'          : '';
+        document.getElementById('kl-'+x).className = 'kunci-lbl'+(x===k?' on':'');
     });
-    document.getElementById('kunci-' + k).checked = true;
 }
 
-// ═══════════════════════════════════════════
-// SIMPAN SOAL
-// ═══════════════════════════════════════════
-function simpanSoal() {
-    // Validasi
-    const fields = {
-        pertanyaan:    document.getElementById('inp-pertanyaan').value.trim(),
-        pilihan_a:     document.getElementById('inp-pilihan-a').value.trim(),
-        pilihan_b:     document.getElementById('inp-pilihan-b').value.trim(),
-        pilihan_c:     document.getElementById('inp-pilihan-c').value.trim(),
-        pilihan_d:     document.getElementById('inp-pilihan-d').value.trim(),
-        jawaban_benar: selectedKey,
-        start_second:  parseInt(document.getElementById('inp-start-second').value) || 0,
-        order_number:  parseInt(document.getElementById('inp-order').value) || (soalCount + 1),
-        audio_script:  document.getElementById('inp-script').value.trim(),
-        part:          document.getElementById('inp-part').value,
-        group_id:      document.getElementById('inp-group').value.trim(),
-        tingkat_kesulitan: document.getElementById('inp-difficulty').value,
-        skill_materi:  document.getElementById('inp-skill').value.trim(),
-    };
+// ══ Simpan soal ════════════════════════════════════════════════
+function simpan() {
+    const q = document.getElementById('inp-q').value.trim();
+    if (!q)            return showFormAlert('Pertanyaan tidak boleh kosong.','danger');
+    if (!curKunci)     return showFormAlert('Pilih jawaban benar.','danger');
+    if (markerStart === null) return showFormAlert('Set Start marker terlebih dahulu.','danger');
+    if (markerEnd === null)   return showFormAlert('Set End marker terlebih dahulu.','danger');
+    if (markerEnd <= markerStart) return showFormAlert('End harus setelah Start.','danger');
 
-    if (!fields.pertanyaan) return showAlert('Pertanyaan wajib diisi.', 'danger');
-    if (!fields.pilihan_a || !fields.pilihan_b || !fields.pilihan_c || !fields.pilihan_d)
-        return showAlert('Semua pilihan A–D wajib diisi.', 'danger');
-    if (!fields.jawaban_benar)
-        return showAlert('Pilih kunci jawaban terlebih dahulu.', 'danger');
-
-    const btn = document.getElementById('btn-simpan');
+    const btn = document.getElementById('btn-save');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
 
@@ -571,97 +574,85 @@ function simpanSoal() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': CSRF_TOKEN,
-            'Accept': 'application/json',
+            'X-CSRF-TOKEN': CSRF,
+            'Accept':       'application/json',
         },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({
+            order_number:  parseInt(document.getElementById('inp-order').value),
+            part:          document.getElementById('inp-part').value,
+            start_second:  markerStart,
+            audio_end:     markerEnd,
+            pause_duration: parseInt(document.getElementById('inp-pause').value) || 15,
+            pertanyaan:    q,
+            audio_script:  document.getElementById('inp-script').value,
+            pilihan_a: document.getElementById('inp-pa').value || '-',
+            pilihan_b: document.getElementById('inp-pb').value || '-',
+            pilihan_c: document.getElementById('inp-pc').value || '-',
+            pilihan_d: document.getElementById('inp-pd').value || '-',
+            jawaban_benar: curKunci,
+        }),
     })
     .then(r => r.json())
-    .then(data => {
-        if (data.ok) {
-            showAlert('Soal No.' + fields.order_number + ' berhasil disimpan!', 'success');
+    .then(d => {
+        if (d.ok) {
+            showAlert(d.msg, 'success');
             resetForm();
-            // Reload daftar soal
             location.reload();
         } else {
-            showAlert(data.msg || 'Gagal menyimpan.', 'danger');
+            showFormAlert(d.msg || 'Gagal menyimpan.', 'danger');
         }
     })
-    .catch(() => showAlert('Terjadi kesalahan. Coba lagi.', 'danger'))
+    .catch(e => showFormAlert('Error: '+e.message,'danger'))
     .finally(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-save"></i> Simpan Soal No. <span id="btn-nomor">' + (soalCount + 1) + '</span>';
+        btn.innerHTML = '<i class="fas fa-save"></i> Simpan Soal';
     });
 }
 
 function resetForm() {
-    ['pertanyaan','script','pilihan-a','pilihan-b','pilihan-c','pilihan-d','group','skill'].forEach(id => {
-        const el = document.getElementById('inp-' + id);
-        if (el) el.value = '';
-    });
-    document.getElementById('inp-start-second').value = '';
-    document.getElementById('ts-display').textContent = '0:00';
-    selectedKey = null;
+    document.getElementById('inp-q').value     = '';
+    document.getElementById('inp-script').value = '';
     ['a','b','c','d'].forEach(k => {
-        const lbl = document.getElementById('kunci-label-' + k);
-        lbl.style.background  = 'transparent';
-        lbl.style.borderColor = 'var(--border)';
-        lbl.style.color       = '';
+        const el = document.getElementById('inp-p'+k);
+        if (el) el.value = '';
+        document.getElementById('kl-'+k).className = 'kunci-lbl';
     });
+    curKunci = null;
+    markerStart = null;
+    markerEnd   = null;
+    document.getElementById('disp-start').textContent = '--:--';
+    document.getElementById('disp-end').textContent   = '--:--';
+    document.getElementById('resume-preview').style.display = 'none';
 }
 
-// ═══════════════════════════════════════════
-// HAPUS SOAL
-// ═══════════════════════════════════════════
 function hapusSoal(id) {
     if (!confirm('Hapus soal ini?')) return;
     fetch(`/admin/listening/soal/${id}`, {
-        method: 'DELETE',
-        headers: {'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json'},
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.ok) {
-            document.getElementById('soal-item-' + id)?.remove();
-            soalCount--;
-            updateProgress();
-            if (audio.duration) renderMarkers(audio.duration);
-        }
+        method:'DELETE',
+        headers:{'X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
+    }).then(r=>r.json()).then(d=>{
+        if(d.ok) { document.getElementById('si-'+id)?.remove(); renderMarkers(); }
     });
 }
 
-function updateProgress() {
-    document.getElementById('jumlah-badge').textContent = soalCount + ' / 50';
-    document.getElementById('progress-text').textContent = soalCount + ' / 50';
-    const pct = Math.min(100, (soalCount / 50) * 100);
-    document.getElementById('progress-fill').style.width = pct + '%';
-    document.getElementById('progress-fill').style.background = pct >= 100 ? 'var(--green)' : 'var(--accent)';
-}
-
-// ═══════════════════════════════════════════
-// TOGGLE SOAL BODY
-// ═══════════════════════════════════════════
-function toggleSoalBody(id) {
-    const body = document.getElementById('body-' + id);
-    if (body) body.classList.toggle('open');
-}
-
-// ═══════════════════════════════════════════
-// ALERT
-// ═══════════════════════════════════════════
 function showAlert(msg, type) {
+    const el = document.getElementById('alert-box');
+    const c  = type==='success'
+        ? ['rgba(22,163,74,.1)','rgba(22,163,74,.3)','#4ade80']
+        : ['rgba(220,38,38,.1)','rgba(220,38,38,.3)','#f87171'];
+    el.style.cssText = `display:block;background:${c[0]};border:1px solid ${c[1]};
+        border-radius:8px;padding:11px 14px;color:${c[2]};font-size:13px`;
+    el.textContent = msg;
+    if(type==='success') setTimeout(()=>el.style.display='none', 4000);
+}
+function showFormAlert(msg, type) {
     const el = document.getElementById('form-alert');
-    const colors = {
-        success: ['rgba(22,163,74,.12)','rgba(22,163,74,.3)','#4ade80'],
-        danger:  ['rgba(220,38,38,.12)','rgba(220,38,38,.3)','#f87171'],
-        warning: ['rgba(217,119,6,.12)','rgba(217,119,6,.3)','#fbbf24'],
-    }[type] || colors.danger;
-
-    el.style.cssText = `display:block;background:${colors[0]};border:1px solid ${colors[1]};
-        border-radius:8px;padding:10px 14px;font-size:13px;color:${colors[2]};margin-bottom:12px`;
-    el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='warning'?'exclamation-triangle':'times-circle'}"></i> ${msg}`;
-
-    if (type === 'success') setTimeout(() => el.style.display = 'none', 4000);
+    const c  = type==='success'
+        ? ['rgba(22,163,74,.1)','rgba(22,163,74,.3)','#4ade80']
+        : ['rgba(220,38,38,.1)','rgba(220,38,38,.3)','#f87171'];
+    el.style.cssText = `display:block;background:${c[0]};border:1px solid ${c[1]};
+        border-radius:8px;padding:10px 14px;color:${c[2]};font-size:13px`;
+    el.textContent = msg;
 }
 </script>
 @endpush

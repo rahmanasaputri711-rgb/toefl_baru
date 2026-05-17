@@ -19,7 +19,8 @@ class BankSoal extends Model
         // Listening
         'modul_id', 'paket_id', 'nomor_dalam_paket',
         'audio_paket_id', 'audio_url', 'audio_script', 'script_audio',
-        'durasi_audio_detik', 'start_second', 'order_number', 'image_url',
+        'durasi_audio_detik', 'start_second', 'audio_end', 'pause_duration',
+        'session_resume_time', 'order_number', 'image_url',
 
         // Structure
         'arrange_words',
@@ -61,10 +62,8 @@ class BankSoal extends Model
     ];
 
     public const TIPE_PAKET = [
-        'full'     => '🏆 Tes Full',
-        'simulasi' => '🎯 Simulasi',
-        'mini'     => '⚡ Tes Mini',
-        'praktik'  => '📚 Praktik',
+        'full' => '🏆 Tes Full',
+        // Simulasi, Mini, Praktik TIDAK menggunakan Bank Soal
     ];
 
     // ── Relasi ─────────────────────────────────────────────────────
@@ -99,5 +98,7 @@ public function audioPaket() { return $this->belongsTo(ListeningAudioPaket::clas
     // ── Scopes ─────────────────────────────────────────────────────
     public function scopeKategori($q, string $kat)  { return $q->where('kategori', $kat); }
     public function scopeTipePaket($q, string $tipe) { return $q->where('tipe_paket', $tipe); }
+    // Bank Soal hanya untuk Tes Full
+    public function scopeFullOnly($q) { return $q->where('untuk_tes_full', 1); }
     public function scopeAktif($q)                  { return $q->where('is_aktif', true); }
 }

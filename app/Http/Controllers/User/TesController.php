@@ -332,10 +332,45 @@ class TesController extends Controller
         // Pastikan: pindah ke structure/reading = SELALU false (tidak splash)
         if ($section !== 'listening') $isFirstStart = false;
 
+        // ── Audio global untuk listening ──
+        $audioGlobal  = null;
+        $tipeTes      = $percobaan->sesiTes?->tipe_tes ?? 'full';
+        $startSeconds = []; // [soal_id => start_second] untuk sinkronisasi
+
+        if ($section === 'listening') {
+            // Cari audio paket yang terhubung ke soal-soal ini
+            // Prioritas: audio tipe 'paket' (full) dari paket soal ini
+            $soalIds = $soalList->pluck('soal.id')->filter()->toArray();
+            if (!empty($soalIds)) {
+                $sampleSoal = \App\Models\BankSoal::whereIn('id', $soalIds)
+                    ->whereNotNull('audio_paket_id')->first();
+
+                if ($sampleSoal?->audio_paket_id) {
+                    $audioPaket = $sampleSoal->audioPaket;
+
+                    if ($audioPaket && $audioPaket->tipe_upload === 'paket') {
+                        // 1 audio full
+                        $audioGlobal = $audioPaket->audio_url_full;
+                    } elseif ($audioPaket && $audioPaket->tipe_upload === 'modul') {
+                        // Audio per modul → buat playlist virtual
+                        // Di user: tampil 1 demi 1 berdasarkan offset
+                        $audioGlobal = $audioPaket->audio_url_full;
+                    }
+                }
+
+                // Kumpulkan start_second per soal_id untuk sinkronisasi
+                $startSeconds = \App\Models\BankSoal::whereIn('id', $soalIds)
+                    ->whereNotNull('start_second')
+                    ->pluck('start_second', 'id')
+                    ->toArray();
+            }
+        }
+
         return view('user.tes.ujian', compact(
             'percobaan','soalList','currentSection',
             'sectionNum','durasiDetik','pendaftaran',
-            'jawabanTersimpan','waktuBerakhir','isFirstStart'
+            'jawabanTersimpan','waktuBerakhir','isFirstStart',
+            'audioGlobal','tipeTes','startSeconds'
         ));
     }
 
@@ -610,67 +645,22 @@ class TesController extends Controller
     // ─── TES MINI ────────────────────────────────────────────────
     public function miniIndex()
     {
-        $jumlahSoal = ['listening' => 10, 'structure' => 10, 'reading' => 10];
-        $cukupSoal  = [
-            'listening' => BankSoal::where('kategori','listening')->where('is_aktif',1)->count() >= 10,
-            'structure' => BankSoal::where('kategori','structure')->where('is_aktif',1)->count() >= 10,
-            'reading'   => BankSoal::where('kategori','reading')  ->where('is_aktif',1)->count() >= 10,
-        ];
-        $totalSoal = array_sum($jumlahSoal);
-        $bisaMulai = !in_array(false, $cukupSoal, true);
-        return view('user.tes.mini', compact('jumlahSoal','cukupSoal','totalSoal','bisaMulai'));
+        // Tes Mini berdiri sendiri — tidak dari Bank Soal
+        return view('user.tes.mini');
     }
 
-    public function miniMulai(Request $request)
-    {
-        $soalList = collect();
-        foreach (['listening','structure','reading'] as $kat) {
-            $soal = BankSoal::where('kategori',$kat)->where('is_aktif',1)->take(10)->get();
-            $soal->each(fn($s) => $s->audio_url_resolved = \App\Services\AudioService::resolveUrl($s->audio_url));
-            // KEAMANAN: sembunyikan jawaban benar
-            $soal->each(fn($s) => $s->makeHidden(['jawaban_benar','pembahasan']));
-            $soalList = $soalList->merge($soal);
-        }
-        session(['mini_soal_ids' => $soalList->pluck('id')->toArray()]);
-        return view('user.tes.mini_ujian', ['soalList'=>$soalList,'durasi'=>30*60]);
-    }
-
-    public function miniSubmit(Request $request)
-    {
-        $jawaban   = $request->input('jawaban', []);
-        $soalIds   = session('mini_soal_ids', []);
-        $review    = [];
-        $benar     = 0;
-
-        foreach ($soalIds as $soalId) {
-            $soal    = BankSoal::find($soalId);
-            if (!$soal) continue;
-            $jwb     = $jawaban[$soalId] ?? null;
-            $isBenar = $jwb && ($soal->jawaban_benar === $jwb);
-            if ($isBenar) $benar++;
-            $review[] = ['soal'=>$soal,'jawaban_user'=>$jwb,'is_benar'=>$isBenar];
-        }
-
-        $totalSoal  = count($soalIds);
-        $persentase = $totalSoal > 0 ? round(($benar/$totalSoal)*100) : 0;
-        session()->forget('mini_soal_ids');
-        return view('user.tes.mini_hasil', compact('review','benar','totalSoal','persentase'));
-    }
+    public function miniMulai(Request $request) { return redirect()->route('user.tes.mini'); }
+    public function miniSubmit(Request $request){ return redirect()->route('user.tes.mini'); }
 
     // ─── TES SIMULASI ────────────────────────────────────────────
     public function simulasiIndex()
     {
-        $jumlahSoal = ['listening'=>20,'structure'=>20,'reading'=>20];
-        $cukupSoal  = [
-            'listening' => BankSoal::where('kategori','listening')->where('is_aktif',1)->count() >= 20,
-            'structure' => BankSoal::where('kategori','structure')->where('is_aktif',1)->count() >= 20,
-            'reading'   => BankSoal::where('kategori','reading')  ->where('is_aktif',1)->count() >= 20,
-        ];
-        return view('user.tes.simulasi', compact('jumlahSoal','cukupSoal'));
+        // Tes Simulasi berdiri sendiri — tidak dari Bank Soal
+        return view('user.tes.simulasi');
     }
 
     public function simulasiMulai(Request $request)
-    {
+    { return redirect()->route('user.tes.simulasi'); /* handled by JS */ //
         $userId  = auth()->id();
         $section = $request->section ?? 'listening';
 

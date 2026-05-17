@@ -148,6 +148,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/modul/{modulId}/soal-passage',           [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeSoalPassage'])->name('modul.soal-passage');
         Route::post('/modul/{modulId}/missing-letters',        [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeMissingLetters'])->name('modul.missing-letters');
         Route::post('/modul/{modulId}/image-email',            [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeImageEmail'])->name('modul.image-email');
+        Route::post('/modul/{modulId}/soal-structure',        [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeSoalStructure'])->name('modul.soal-structure');
         Route::post('/modul/{modulId}/soal-listening',         [\App\Http\Controllers\Admin\PaketBuilderController::class, 'storeSoalListening'])->name('modul.soal-listening');
         Route::post('/modul/{modulId}/upload-gambar',          [\App\Http\Controllers\Admin\PaketBuilderController::class, 'uploadGambar'])->name('modul.upload-gambar');
         Route::get ('/paket/{paketId}/preview',[\App\Http\Controllers\Admin\PaketBuilderController::class, 'previewPaket'])->name('preview');
@@ -178,10 +179,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post  ('listening/{id}/durasi',   [\App\Http\Controllers\Admin\ListeningController::class, 'updateDurasi'])->name('listening.updateDurasi');
     Route::delete('listening/soal/{soalId}', [\App\Http\Controllers\Admin\ListeningController::class, 'destroySoal'])->name('listening.destroySoal');
     Route::delete('listening/{id}',          [\App\Http\Controllers\Admin\ListeningController::class, 'destroy'])->name('listening.destroy');
+    Route::get   ('listening/gabungan/{paketSoalId}', [\App\Http\Controllers\Admin\ListeningController::class, 'infoGabungan'])->name('listening.gabungan');
 
     // Bank Soal
     Route::get   ('soal',              [\App\Http\Controllers\Admin\BankSoalController::class, 'index'])->name('soal.index');
-    Route::get   ('soal/group',         function() { return view('admin.soal.group'); })->name('soal.group');
+    Route::get   ('soal/group',              function() { return view('admin.soal.group'); })->name('soal.group');
+    Route::get   ('soal/group/reading',      function() { return view('admin.soal.group-reading'); })->name('soal.group.reading');
+    Route::get   ('soal/group/listening',    function() { return view('admin.soal.group-listening'); })->name('soal.group.listening');
+    Route::get   ('soal/group/structure',    function() { return view('admin.soal.group-structure'); })->name('soal.group.structure');
+    Route::get   ('structure/create',        [\App\Http\Controllers\Admin\StructureController::class, 'create'])->name('structure.create');
+    Route::post  ('structure/store',         [\App\Http\Controllers\Admin\StructureController::class, 'store'])->name('structure.store');
+    Route::delete('structure/{id}',          [\App\Http\Controllers\Admin\StructureController::class, 'destroy'])->name('structure.destroy');
     Route::get   ('soal/modul-list',    function() { return view('admin.soal.modul'); })->name('soal.modul');
     Route::get   ('soal/create',       [\App\Http\Controllers\Admin\BankSoalController::class, 'create'])->name('soal.create');
     Route::post  ('soal',              [\App\Http\Controllers\Admin\BankSoalController::class, 'store'])->name('soal.store');

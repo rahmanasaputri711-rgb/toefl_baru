@@ -76,7 +76,8 @@ class PendaftaranTesController extends Controller
         }
 
         // Cek kuota
-        $sesi = SesiTes::findOrFail($request->sesi_id);
+        // Pastikan sesi adalah Tes Full — pendaftaran hanya untuk Tes Full
+        $sesi = SesiTes::where('tipe_tes','full')->findOrFail($request->sesi_id);
         if ($sesi->peserta_terdaftar >= $sesi->kuota_peserta)
             return back()->with('error', 'Kuota sesi ini sudah penuh.');
 

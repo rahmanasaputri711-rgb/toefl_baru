@@ -14,6 +14,8 @@ class BankSoalController extends Controller
     {
         $q = BankSoal::with('grupSoal','passage');
         if ($request->filled('kategori'))      $q->where('kategori', $request->kategori);
+        // Bank Soal hanya untuk Tes Full
+        $q->where('untuk_tes_full', 1);
         if ($request->filled('tipe_paket'))    $q->where('tipe_paket', $request->tipe_paket);
         if ($request->filled('kesulitan'))     $q->where('tingkat_kesulitan', $request->kesulitan);
         if ($request->filled('sub_bagian'))    $q->where('sub_bagian', $request->sub_bagian);
@@ -49,7 +51,7 @@ class BankSoalController extends Controller
     {
         $rules = [
             'kategori'          => 'required|in:listening,structure,reading',
-            'tipe_paket'        => 'required|in:praktik,mini,simulasi,full',
+            'tipe_paket'        => 'required|in:full', // Bank Soal hanya untuk Tes Full
             'tingkat_kesulitan' => 'required|in:easy,medium,hard',
             'nomor_soal'        => 'nullable|integer|min:1|max:140',
             'pertanyaan'        => 'required|string',
@@ -105,7 +107,7 @@ class BankSoalController extends Controller
 
         $validated = $request->validate([
             'kategori'          => 'required|in:listening,structure,reading',
-            'tipe_paket'        => 'required|in:praktik,mini,simulasi,full',
+            'tipe_paket'        => 'required|in:full', // Bank Soal hanya untuk Tes Full
             'tingkat_kesulitan' => 'required|in:easy,medium,hard',
             'nomor_soal'        => 'nullable|integer|min:1|max:140',
             'pertanyaan'        => 'required|string',

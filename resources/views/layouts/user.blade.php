@@ -3,387 +3,706 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title','Dashboard') — TOEFL ITP Polman</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>@yield('title', 'Dashboard') — TOEFL Prep</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('css/audio-player.css') }}">
     <style>
-        :root {
-            --blue:      #1a56db;
-            --blue-dark: #1e3a8a;
-            --blue-mid:  #2563eb;
-            --navy:      #0f2456;
-            --navy-mid:  #162244;
-            --blue-light:#eff6ff;
-            --blue-pale: #dbeafe;
-            --sidebar-bg:#0f2456;
-            --sidebar-w: 250px;
-            --text:      #1e293b;
-            --muted:     #64748b;
-            --border:    #e2e8f0;
-            --bg:        #f1f5f9;
-            --white:     #ffffff;
-            --green:     #16a34a;
-            --red:       #dc2626;
-            --gold:      #d97706;
-            --orange:    #ea580c;
-            --purple:    #7c3aed;
-        }
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);
-            min-height:100vh;display:flex}
+    /* ──────────────────────────────────────────
+       TOKENS  — calm, premium, SaaS-grade
+    ────────────────────────────────────────── */
+    :root {
+        /* Primary */
+        --blue:      #2563EB;
+        --blue-h:    #1D4ED8;
+        --blue-lt:   #EFF6FF;
+        --blue-pale: #DBEAFE;
+        --navy:      #0F172A;
 
-        /* ── SIDEBAR ── */
-        .sidebar{
-            width:var(--sidebar-w);background:var(--sidebar-bg);
-            display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;
-            z-index:100;overflow-y:auto;
-        }
-        .sb-brand{
-            padding:20px 18px 18px;
-            border-bottom:1px solid rgba(255,255,255,.1);
-        }
-        .sb-logo{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-        .sb-logo-icon{
-            width:38px;height:38px;border-radius:10px;
-            background:rgba(255,255,255,.15);
-            display:flex;align-items:center;justify-content:center;
-            color:#fff;font-size:18px;font-weight:900;
-        }
-        .sb-logo-text{font-size:15px;font-weight:800;color:#fff}
-        .sb-logo-sub{font-size:10.5px;color:rgba(255,255,255,.5);margin-top:1px}
-        .sb-user{
-            background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;
-            display:flex;align-items:center;gap:10px;
-        }
-        .sb-avatar{
-            width:34px;height:34px;border-radius:50%;
-            background:linear-gradient(135deg,#60a5fa,#3b82f6);
-            display:flex;align-items:center;justify-content:center;
-            font-weight:700;font-size:14px;color:#fff;flex-shrink:0;
-        }
-        .sb-uname{font-size:13px;font-weight:600;color:#fff;
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .sb-uemail{font-size:11px;color:rgba(255,255,255,.5);
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        /* Accent */
+        --purple:    #8B5CF6;
+        --green:     #22C55E;
+        --green-lt:  #DCFCE7;
+        --amber:     #F59E0B;
+        --amber-lt:  #FEF9C3;
+        --red:       #EF4444;
+        --red-lt:    #FEE2E2;
+        --gold:      #F59E0B;
+        --gold-lt:   #FEF9C3;
+        --orange:    #F97316;
 
-        .sb-nav{padding:14px 12px;flex:1}
-        .sb-section{
-            font-size:10px;font-weight:700;letter-spacing:1.5px;
-            color:rgba(255,255,255,.35);text-transform:uppercase;
-            padding:10px 8px 5px;
-        }
-        .nav-item{
-            display:flex;align-items:center;justify-content:space-between;
-            padding:9px 12px;border-radius:9px;color:rgba(255,255,255,.65);
-            text-decoration:none;font-size:13.5px;font-weight:500;
-            transition:all .15s;margin-bottom:2px;
-        }
-        .nav-item-left{display:flex;align-items:center;gap:10px}
-        .nav-item i{width:17px;text-align:center;font-size:13px;flex-shrink:0}
-        .nav-item:hover{background:rgba(255,255,255,.1);color:#fff}
-        .nav-item.active{background:rgba(255,255,255,.15);color:#fff;font-weight:600}
-        .nav-item.active i{color:#93c5fd}
-        .nav-badge{
-            background:#dc2626;color:#fff;
-            font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;
-        }
-        .nav-chevron{font-size:10px;color:rgba(255,255,255,.35)}
+        /* Legacy aliases (views use these) */
+        --accent:    #2563EB;
+        --accent2:   #1D4ED8;
+        --green-dk:  #16A34A;
 
-        .sb-footer{padding:14px;border-top:1px solid rgba(255,255,255,.1)}
-        .btn-logout{
-            display:flex;align-items:center;gap:9px;width:100%;
-            padding:10px 12px;background:rgba(255,255,255,.06);
-            border:1px solid rgba(255,255,255,.1);border-radius:9px;
-            color:rgba(255,255,255,.6);cursor:pointer;font-size:13px;
-            font-family:inherit;transition:all .15s;
-        }
-        .btn-logout:hover{background:rgba(220,38,38,.15);border-color:rgba(220,38,38,.3);color:#fca5a5}
+        /* Surface */
+        --bg:       #F8FAFC;   /* slightly warmer than pure gray */
+        --white:    #FFFFFF;
+        --surface2: #F1F5F9;
+        --text:     #1E293B;
+        --muted:    #64748B;
+        --muted-lt: #94A3B8;
+        --border:   #E2E8F0;
 
-        /* ── MAIN ── */
-        .main-wrap{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+        /* Shadow — ultra-soft only */
+        --shadow-xs: 0 1px 2px rgba(15,23,42,.04);
+        --shadow-sm: 0 1px 4px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+        --shadow-md: 0 4px 16px rgba(15,23,42,.08), 0 1px 4px rgba(15,23,42,.04);
+        --shadow-lg: 0 8px 32px rgba(15,23,42,.1);
 
-        /* ── TOPBAR ── */
-        .topbar{
-            background:#fff;border-bottom:1px solid var(--border);
-            padding:0 24px;height:62px;display:flex;align-items:center;
-            justify-content:space-between;position:sticky;top:0;z-index:50;
-            box-shadow:0 1px 3px rgba(0,0,0,.04);
-        }
-        .topbar-title{font-size:17px;font-weight:700;color:var(--navy)}
-        .topbar-bread{font-size:12px;color:var(--muted);margin-top:1px}
-        .topbar-right{display:flex;align-items:center;gap:12px}
-        .notif-btn{
-            width:38px;height:38px;border-radius:9px;background:var(--bg);
-            border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
-            color:var(--muted);text-decoration:none;transition:all .15s;position:relative;
-        }
-        .notif-btn:hover{border-color:var(--blue);color:var(--blue)}
-        .notif-dot{
-            width:8px;height:8px;background:var(--red);border-radius:50%;
-            position:absolute;top:6px;right:6px;border:2px solid #fff;
-        }
+        /* Layout */
+        --sidebar-w: 232px;
+        --topbar-h:  58px;
+        --radius:    14px;
+        --radius-sm: 9px;
+    }
 
-        /* ── CONTENT ── */
-        .content{padding:24px;flex:1}
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior:smooth; font-size:14px; }
+    body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        display: flex;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+    }
 
-        /* ── CARDS ── */
-        .card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden}
-        .card-header{
-            padding:16px 22px;border-bottom:1px solid var(--border);
-            display:flex;align-items:center;justify-content:space-between;
-        }
-        .card-header h3{font-size:15px;font-weight:700;color:var(--navy)}
-        .card-body{padding:22px}
+    /* ──────────────────────────────────────────
+       SIDEBAR — darker, calmer, glassmorphism
+    ────────────────────────────────────────── */
+    .sidebar {
+        width: var(--sidebar-w);
+        min-height: 100vh;
+        /* Calm deep blue — NOT electric, NOT neon */
+        background: linear-gradient(170deg, #1E3A8A 0%, #1E40AF 55%, #2563EB 100%);
+        position: fixed; top:0; left:0; bottom:0;
+        display: flex; flex-direction: column;
+        z-index: 300;
+        box-shadow: 2px 0 20px rgba(15,23,42,.12);
+    }
+    /* Subtle top highlight for depth */
+    .sidebar::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 160px;
+        background: linear-gradient(180deg, rgba(255,255,255,.06) 0%, transparent 100%);
+        pointer-events: none;
+    }
 
-        /* ── STAT CARDS ── */
-        .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:14px;margin-bottom:22px}
-        .stat-card{
-            background:#fff;border:1px solid var(--border);border-radius:14px;
-            padding:18px;display:flex;align-items:center;gap:14px;
-        }
-        .stat-icon{
-            width:48px;height:48px;border-radius:12px;
-            display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;
-        }
-        .si-blue  {background:var(--blue-light);color:var(--blue)}
-        .si-green {background:#f0fdf4;color:var(--green)}
-        .si-gold  {background:#fffbeb;color:var(--gold)}
-        .si-red   {background:#fff1f2;color:var(--red)}
-        .si-purple{background:#f5f3ff;color:var(--purple)}
-        .si-orange{background:#fff7ed;color:var(--orange)}
-        .stat-val  {font-size:26px;font-weight:800;line-height:1;color:var(--navy)}
-        .stat-label{font-size:12px;color:var(--muted);margin-top:3px}
+    /* Brand */
+    .sb-brand {
+        height: var(--topbar-h);
+        display: flex; align-items: center; gap: 11px;
+        padding: 0 18px;
+        border-bottom: 1px solid rgba(255,255,255,.07);
+        flex-shrink: 0; position: relative;
+    }
+    .sb-logo {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: rgba(255,255,255,.15);
+        border: 1px solid rgba(255,255,255,.2);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; color: #fff; flex-shrink: 0;
+    }
+    .sb-name  { font-size: 14.5px; font-weight: 800; color: #fff; line-height: 1.2; }
+    .sb-sub   { font-size: 10.5px; color: rgba(255,255,255,.45); font-weight: 400; }
 
-        /* ── TABLE ── */
-        .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
-        .tbl thead tr{background:#f8fafc}
-        .tbl th{
-            padding:10px 16px;text-align:left;font-size:11px;font-weight:700;
-            letter-spacing:.7px;text-transform:uppercase;color:var(--muted);
-            border-bottom:1px solid var(--border);
-        }
-        .tbl td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
-        .tbl tbody tr:hover{background:#fafbfc}
-        .tbl tbody tr:last-child td{border-bottom:none}
+    /* Nav */
+    .sb-nav   { flex: 1; overflow-y: auto; padding: 12px 10px 8px; position: relative; }
+    .sb-nav::-webkit-scrollbar { width: 0; }
 
-        /* ── BADGE ── */
-        .badge{display:inline-flex;align-items:center;gap:4px;
-            font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:20px}
-        .badge-green {background:#dcfce7;color:var(--green)}
-        .badge-red   {background:#fee2e2;color:var(--red)}
-        .badge-gold  {background:#fef3c7;color:var(--gold)}
-        .badge-blue  {background:var(--blue-pale);color:var(--blue)}
-        .badge-gray  {background:#f1f5f9;color:var(--muted)}
-        .badge-orange{background:#fff7ed;color:var(--orange)}
-        .badge-purple{background:#f5f3ff;color:var(--purple)}
+    .sb-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 12px; border-radius: 9px;
+        color: rgba(255,255,255,.65); font-size: 13.5px; font-weight: 500;
+        text-decoration: none; transition: all .15s;
+        margin-bottom: 1px;
+        background: none; border: none; cursor: pointer;
+        width: 100%; font-family: inherit;
+        position: relative;
+    }
+    .sb-item i {
+        width: 18px; text-align:center; font-size: 14px;
+        flex-shrink: 0; opacity: .8;
+        transition: opacity .15s;
+    }
+    .sb-item:hover {
+        background: rgba(255,255,255,.1);
+        color: rgba(255,255,255,.95);
+    }
+    .sb-item:hover i { opacity: 1; }
+    .sb-item.active {
+        /* Glassmorphism active state */
+        background: rgba(255,255,255,.15);
+        backdrop-filter: blur(8px);
+        color: #fff; font-weight: 600;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+    }
+    .sb-item.active i { opacity: 1; }
+    .sb-item.active::before {
+        content: '';
+        position: absolute; left: 0; top: 20%; bottom: 20%;
+        width: 3px; border-radius: 0 3px 3px 0;
+        background: rgba(255,255,255,.7);
+    }
+    .sb-badge {
+        margin-left: auto; background: #EF4444;
+        color: #fff; font-size: 10px; font-weight: 700;
+        padding: 2px 6px; border-radius: 20px; min-width: 18px; text-align:center;
+    }
+    .sb-sep {
+        height: 1px; background: rgba(255,255,255,.07);
+        margin: 7px 10px;
+    }
 
-        /* ── BUTTONS ── */
-        .btn{
-            display:inline-flex;align-items:center;gap:7px;padding:9px 18px;
-            border-radius:9px;font-size:13.5px;font-weight:600;text-decoration:none;
-            cursor:pointer;border:none;transition:all .15s;white-space:nowrap;font-family:inherit;
-        }
-        .btn-primary{background:var(--blue);color:#fff}
-        .btn-primary:hover{background:var(--blue-dark)}
-        .btn-success{background:#16a34a;color:#fff}
-        .btn-success:hover{opacity:.88}
-        .btn-danger {background:var(--red);color:#fff}
-        .btn-danger:hover{opacity:.88}
-        .btn-warning{background:#f59e0b;color:#000}
-        .btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--muted)}
-        .btn-outline:hover{border-color:var(--blue);color:var(--blue)}
-        .btn-sm{padding:6px 13px;font-size:12px}
-        .btn-block{width:100%;justify-content:center}
+  /* ──────────────────────────────────────────
+   PROMO CARD — clean floating illustration
+────────────────────────────────────────── */
+.sb-promo {
+    margin: 8px 10px;
 
-        /* ── FORMS ── */
-        .form-group{margin-bottom:16px}
-        .form-label{display:block;font-size:12px;font-weight:700;color:var(--muted);
-            margin-bottom:7px;text-transform:uppercase;letter-spacing:.5px}
-        .form-control{
-            width:100%;background:#f9fafb;border:1.5px solid var(--border);
-            border-radius:9px;padding:10px 14px;color:var(--text);font-size:14px;
-            font-family:inherit;outline:none;transition:border-color .15s;
-        }
-        .form-control:focus{border-color:var(--blue);background:#fff}
-        .form-control::placeholder{color:#9ca3af}
-        select.form-control option{background:#fff}
-        textarea.form-control{resize:vertical;min-height:90px}
+    padding: 18px 14px 14px;
 
-        /* ── GRID ── */
-        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+   
 
-        /* ── ALERTS ── */
-        .alert{
-            padding:12px 16px;border-radius:10px;font-size:13.5px;margin-bottom:18px;
-            display:flex;align-items:flex-start;gap:10px;
-        }
-        .alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
-        .alert-danger {background:#fff1f2;border:1px solid #fecdd3;color:#be123c}
-        .alert-info   {background:var(--blue-light);border:1px solid var(--blue-pale);color:var(--blue)}
-        .alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+    /* background soft tanpa kotak aneh */
 
-        /* ── EMPTY STATE ── */
-        .empty-state{text-align:center;padding:50px 20px;color:var(--muted)}
-        .empty-state i{font-size:36px;margin-bottom:12px;opacity:.3;display:block}
-        .empty-state p{font-size:14px}
 
-        /* ── PAGINATION ── */
-        .pg-wrap{
-            padding:14px 20px;border-top:1px solid var(--border);
-            display:flex;align-items:center;justify-content:space-between;font-size:13px;
-        }
-        .pg-info{color:var(--muted)}
+    backdrop-filter: blur(10px);
 
-        /* ── SCROLLBAR ── */
-        ::-webkit-scrollbar{width:4px;height:4px}
-        ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
+    text-align: center;
+
+    position: relative;
+
+    overflow: hidden;
+}
+
+/* PASTIKAN TIDAK ADA BULAT / KOTAK TRANSPARAN */
+.sb-promo::before,
+.sb-promo::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* IMAGE */
+.sb-promo-img {
+    width: 90px;
+
+    display: block;
+
+    margin: -8px auto 10px;
+
+    position: relative;
+    z-index: 2;
+
+    background: transparent !important;
+
+    mix-blend-mode: normal;
+
+    /* efek floating */
+    filter: drop-shadow(0 10px 18px rgba(0,0,0,0.16));
+
+}
+
+/* floating animation */
+@keyframes floating {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-7px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+/* TEXT */
+.sb-promo-text {
+    font-size: 10px;
+
+    line-height: 1.6;
+
+    color: rgba(255,255,255,0.88);
+
+    font-weight: 600;
+
+    margin-bottom: 14px;
+}
+
+/* BUTTON */
+.sb-promo-btn {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+
+    padding: 10px 14px;
+
+    border-radius: 12px;
+
+    background: #FFFFFF;
+
+    color: #1E40AF;
+
+    font-size: 12.5px;
+
+    font-weight: 700;
+
+    text-decoration: none;
+
+    transition: all 0.2s ease;
+
+    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+}
+
+.sb-promo-btn:hover {
+    transform: translateY(-2px);
+
+    background: #F8FAFC;
+
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+}
+    /* User footer */
+    .sb-foot {
+        padding: 8px 10px 10px;
+        border-top: 1px solid rgba(255,255,255,.07);
+        flex-shrink: 0;
+    }
+    .sb-user {
+        display: flex; align-items: center; gap: 9px;
+        padding: 8px 10px; border-radius: 9px;
+        transition: background .15s;
+    }
+    .sb-user:hover { background: rgba(255,255,255,.08); }
+    .sb-av {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: rgba(255,255,255,.18);
+        border: 1.5px solid rgba(255,255,255,.25);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .sb-uname { font-size: 12.5px; font-weight: 600; color: #fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:130px; }
+    .sb-urole { font-size: 10px; color: rgba(255,255,255,.45); margin-top: 1px; }
+
+    /* ──────────────────────────────────────────
+       MAIN WRAPPER
+    ────────────────────────────────────────── */
+    .main-wrap {
+        margin-left: var(--sidebar-w);
+        flex: 1; display: flex; flex-direction: column;
+        min-height: 100vh;
+    }
+
+    /* ──────────────────────────────────────────
+       TOPBAR
+    ────────────────────────────────────────── */
+    .topbar {
+        height: var(--topbar-h);
+        background: var(--white);
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center;
+        padding: 0 24px; gap: 12px;
+        position: sticky; top: 0; z-index: 200;
+        box-shadow: var(--shadow-xs);
+    }
+    .topbar-left { flex: 1; display:flex; align-items:center; gap:10px; }
+    .tb-title { font-size: 15px; font-weight: 700; color: var(--navy); }
+    .tb-sub   { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .topbar-right { display:flex; align-items:center; gap:8px; }
+
+    .tb-btn {
+        width: 34px; height: 34px; border-radius: 8px;
+        background: var(--bg); border: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--muted); font-size: 13px;
+        text-decoration: none; cursor: pointer;
+        transition: all .15s; position: relative;
+    }
+    .tb-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-lt); }
+    .tb-dot {
+        position: absolute; top: 6px; right: 6px;
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--red); border: 1.5px solid var(--white);
+    }
+    .tb-user {
+        display: flex; align-items: center; gap: 8px;
+        padding: 4px 10px 4px 5px;
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: 9px; cursor: pointer; transition: all .15s;
+        text-decoration: none;
+    }
+    .tb-user:hover { border-color: var(--blue); background: var(--blue-lt); }
+    .tb-user-av {
+        width: 26px; height: 26px; border-radius: 7px;
+        background: linear-gradient(135deg, var(--blue), var(--blue-h));
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700; color: #fff;
+    }
+    .tb-user-name {
+        font-size: 13px; font-weight: 600; color: var(--text);
+        max-width: 88px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+
+    /* Mobile */
+    .mob-toggle {
+        display: none; align-items:center; justify-content:center;
+        width: 34px; height: 34px; border-radius: 8px;
+        background: var(--bg); border: 1px solid var(--border);
+        color: var(--text); cursor: pointer;
+    }
+    .sb-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:250; }
+
+    /* ──────────────────────────────────────────
+       CONTENT AREA
+    ────────────────────────────────────────── */
+    .content-area { padding: 20px 24px 48px; flex: 1; }
+
+    /* ──────────────────────────────────────────
+       ALERTS
+    ────────────────────────────────────────── */
+    .alert {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 12px 16px; border-radius: 10px;
+        font-size: 13.5px; margin-bottom: 16px;
+        border: 1px solid transparent;
+    }
+    .alert i { margin-top: 2px; flex-shrink: 0; }
+    .alert-warning { background: #FFFBEB; border-color: #FDE68A; color: #78350F; }
+    .alert-warning i { color: var(--amber); }
+    .alert-success  { background: #F0FDF4; border-color: #BBF7D0; color: #14532D; }
+    .alert-success i { color: #16A34A; }
+    .alert-danger   { background: #FEF2F2; border-color: #FECACA; color: #7F1D1D; }
+    .alert-danger i  { color: var(--red); }
+    .alert-info     { background: var(--blue-lt); border-color: var(--blue-pale); color: #1E3A8A; }
+
+    /* ──────────────────────────────────────────
+       STAT GRID
+    ────────────────────────────────────────── */
+    .stat-grid {
+        display: grid; grid-template-columns: repeat(4,1fr);
+        gap: 14px; margin-bottom: 20px;
+    }
+    .stat-card {
+        background: var(--white); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 16px 18px;
+        display: flex; align-items: center; gap: 14px;
+        box-shadow: var(--shadow-xs); transition: all .2s;
+    }
+    .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .stat-icon {
+        width: 44px; height: 44px; border-radius: 11px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 17px; flex-shrink: 0;
+    }
+    .si-blue   { background: #EFF6FF; color: #2563EB; }
+    .si-gold   { background: #FFFBEB; color: #D97706; }
+    .si-green  { background: #F0FDF4; color: #16A34A; }
+    .si-purple { background: #F3E8FF; color: #7C3AED; }
+    .si-red    { background: #FEF2F2; color: #DC2626; }
+    .si-indigo { background: #EEF2FF; color: #4F46E5; }
+    .si-cyan   { background: #ECFEFF; color: #0891B2; }
+    .si-orange { background: #FFF7ED; color: #EA580C; }
+    .stat-val   { font-size: 23px; font-weight: 800; color: var(--navy); line-height: 1.1; }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* ──────────────────────────────────────────
+       CARDS
+    ────────────────────────────────────────── */
+    .card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-xs);
+        margin-bottom: 20px; overflow: hidden;
+        transition: box-shadow .2s;
+    }
+    .card:hover { box-shadow: var(--shadow-sm); }
+    .card-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--white);
+    }
+    .card-header h3 {
+        font-size: 14px; font-weight: 700; color: var(--navy);
+        display: flex; align-items: center; margin: 0;
+    }
+    .card-body { padding: 18px 20px; }
+
+    /* ──────────────────────────────────────────
+       GRID HELPERS
+    ────────────────────────────────────────── */
+    .grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-bottom:18px; }
+    .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+
+    /* ──────────────────────────────────────────
+       BUTTONS
+    ────────────────────────────────────────── */
+    .btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 8px 17px; border-radius: var(--radius-sm);
+        font-size: 13.5px; font-weight: 600;
+        text-decoration: none; cursor: pointer;
+        border: 1.5px solid transparent;
+        font-family: inherit; transition: all .15s; white-space: nowrap;
+    }
+    .btn-primary {
+        background: var(--blue); color: #fff; border-color: var(--blue);
+    }
+    .btn-primary:hover {
+        background: var(--blue-h); border-color: var(--blue-h);
+        transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,.25);
+    }
+    .btn-outline {
+        background: transparent; border-color: var(--border); color: var(--muted);
+    }
+    .btn-outline:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-lt); }
+    .btn-danger  { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-danger:hover { background: #DC2626; }
+    .btn-block   { display: flex; width: 100%; justify-content: center; }
+    .btn-sm      { padding: 5px 12px; font-size: 12.5px; border-radius: 7px; }
+    .btn-lg      { padding: 11px 26px; font-size: 14.5px; }
+
+    /* ──────────────────────────────────────────
+       BADGES
+    ────────────────────────────────────────── */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
+    .badge-green  { background:#DCFCE7; color:#15803D; }
+    .badge-gold   { background:#FEF9C3; color:#B45309; }
+    .badge-red    { background:#FEE2E2; color:#B91C1C; }
+    .badge-blue   { background:#DBEAFE; color:#1D4ED8; }
+    .badge-gray   { background:#F1F5F9; color:#475569; }
+    .badge-purple { background:#EDE9FE; color:#6D28D9; }
+
+    /* ──────────────────────────────────────────
+       TABLE
+    ────────────────────────────────────────── */
+    .tbl { width:100%; border-collapse:collapse; }
+    .tbl thead tr { background: var(--bg); }
+    .tbl th {
+        padding: 10px 16px; text-align: left;
+        font-size: 11px; font-weight: 700; color: var(--muted);
+        text-transform: uppercase; letter-spacing: .6px;
+        border-bottom: 1px solid var(--border);
+    }
+    .tbl td {
+        padding: 11px 16px; font-size: 13.5px;
+        color: var(--text); border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+    }
+    .tbl tbody tr:hover { background: var(--bg); }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+
+    /* ──────────────────────────────────────────
+       FORMS
+    ────────────────────────────────────────── */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display:block; font-size:13px; font-weight:600; color:var(--navy); margin-bottom:6px; }
+    .form-control {
+        width: 100%; padding: 9px 13px;
+        border: 1.5px solid var(--border); border-radius: 8px;
+        font-size: 13.5px; font-family: inherit; color: var(--text);
+        background: var(--white); outline: none;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    .form-control:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+    .form-control::placeholder { color: var(--muted-lt); }
+    .form-control:disabled { background: var(--bg); opacity: .7; }
+    select.form-control { cursor: pointer; }
+    textarea.form-control { resize: vertical; min-height: 100px; }
+
+    /* ──────────────────────────────────────────
+       EMPTY STATE
+    ────────────────────────────────────────── */
+    .empty-state { text-align:center; padding:44px 24px; color:var(--muted); }
+    .empty-state i { font-size:32px; color:#CBD5E1; display:block; margin-bottom:12px; }
+    .empty-state p { font-size:14px; margin-bottom:4px; color:var(--text); }
+    .empty-state small { font-size:12.5px; color:var(--muted); }
+
+    /* ──────────────────────────────────────────
+       RESPONSIVE
+    ────────────────────────────────────────── */
+    @media (max-width:1024px) { .stat-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:768px) {
+        .sidebar { transform:translateX(-100%); transition:transform .25s; }
+        .sidebar.open { transform:translateX(0); }
+        .sb-overlay.open { display:block; }
+        .main-wrap { margin-left:0; }
+        .mob-toggle { display:flex; }
+        .grid-2, .grid-3 { grid-template-columns:1fr; }
+        .stat-grid { grid-template-columns:repeat(2,1fr); }
+        .content-area { padding:14px 14px 32px; }
+    }
+    @media (max-width:480px) { .stat-grid { grid-template-columns:1fr; } }
     </style>
     @stack('styles')
 </head>
 <body>
 
-{{-- SIDEBAR --}}
-<aside class="sidebar">
+<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+
+<!-- ════════════════ SIDEBAR ════════════════ -->
+<aside class="sidebar" id="sidebar">
+
     <div class="sb-brand">
-        <div class="sb-logo">
-            <div class="sb-logo-icon">T</div>
-            <div>
-                <div class="sb-logo-text">TOEFL Prep</div>
-                <div class="sb-logo-sub">UPA Bahasa Polman</div>
-            </div>
-        </div>
-        <div class="sb-user">
-            <div class="sb-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}</div>
-            <div style="overflow:hidden;flex:1">
-                <div class="sb-uname">{{ auth()->user()->name ?? 'User' }}</div>
-                <div class="sb-uemail">{{ auth()->user()->email ?? '' }}</div>
-            </div>
+        <div class="sb-logo"><i class="fas fa-graduation-cap"></i></div>
+        <div>
+            <div class="sb-name">TOEFL Prep</div>
+            <div class="sb-sub">UPA Bahasa Polman</div>
         </div>
     </div>
 
     <nav class="sb-nav">
-        <div class="sb-section">Menu Utama</div>
-        <a href="{{ route('user.dashboard') }}" class="nav-item {{ request()->routeIs('user.dashboard') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-home"></i> Dashboard</div>
+        <a href="{{ route('user.dashboard') }}"
+           class="sb-item {{ request()->routeIs('user.dashboard') ? 'active' : '' }}">
+            <i class="fas fa-home"></i> Dashboard
+        </a>
+        <a href="{{ route('user.materi.index') }}"
+           class="sb-item {{ request()->routeIs('user.materi.*') ? 'active' : '' }}">
+            <i class="fas fa-book-open"></i> Materi
+        </a>
+        <a href="{{ route('user.latihan.index') }}"
+           class="sb-item {{ request()->routeIs('user.latihan.*') ? 'active' : '' }}">
+            <i class="fas fa-pen-nib"></i> Latihan Soal
         </a>
 
-        <div class="sb-section">Belajar</div>
-        <a href="{{ route('user.materi.index') }}" class="nav-item {{ request()->routeIs('user.materi.*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-book-open"></i> Materi</div>
-            <i class="fas fa-chevron-right nav-chevron"></i>
+        <div class="sb-sep"></div>
+
+        <a href="{{ route('user.tes.mini') }}"
+           class="sb-item {{ request()->routeIs('user.tes.mini*') ? 'active' : '' }}">
+            <i class="fas fa-bolt"></i> Mini Test
         </a>
-        <a href="{{ route('user.latihan.index') }}" class="nav-item {{ request()->routeIs('user.latihan.*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-pen-to-square"></i> Praktik</div>
-            <i class="fas fa-chevron-right nav-chevron"></i>
+        <a href="{{ route('user.tes.simulasi') }}"
+           class="sb-item {{ request()->routeIs('user.tes.simulasi*') ? 'active' : '' }}">
+            <i class="fas fa-flask"></i> Tes Simulasi
+        </a>
+        <a href="{{ route('user.tes.full') }}"
+           class="sb-item {{ request()->routeIs('user.tes.full*') ? 'active' : '' }}">
+            <i class="fas fa-graduation-cap"></i> Full Test
+        </a>
+        <a href="{{ route('user.hasil.index') }}"
+           class="sb-item {{ request()->routeIs('user.hasil.*') ? 'active' : '' }}">
+            <i class="fas fa-chart-bar"></i> Riwayat Tes
         </a>
 
-        <div class="sb-section">Tes</div>
-        <a href="{{ route('user.tes.mini') }}" class="nav-item {{ request()->routeIs('user.tes.mini*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-bolt"></i> Mini Test</div>
-        </a>
-        <a href="{{ route('user.tes.simulasi') }}" class="nav-item {{ request()->routeIs('user.tes.simulasi*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-flask"></i> Simulasi</div>
-        </a>
-        <a href="{{ route('user.tes.full') }}" class="nav-item {{ request()->routeIs('user.tes.full*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-graduation-cap"></i> Full Test</div>
-            @php
-                $pendingDaftar = auth()->check()
-                    ? \App\Models\PendaftaranTes::where('user_id',auth()->id())
-                        ->where('status_pendaftaran','menunggu')->exists()
-                    : false;
-            @endphp
-            @if($pendingDaftar)<span class="nav-badge">!</span>@endif
-        </a>
+        <div class="sb-sep"></div>
 
-        <div class="sb-section">Hasil</div>
-        <a href="{{ route('user.hasil.index') }}" class="nav-item {{ request()->routeIs('user.hasil.*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-trophy"></i> Hasil</div>
+        @php $unreadCount = auth()->user()?->notifikasi()->where('is_read',0)->count() ?? 0; @endphp
+        <a href="{{ route('user.notifikasi') }}"
+           class="sb-item {{ request()->routeIs('user.notifikasi') ? 'active' : '' }}">
+            <i class="fas fa-bell"></i> Notifikasi
+            @if($unreadCount > 0)
+            <span class="sb-badge">{{ $unreadCount }}</span>
+            @endif
         </a>
-        <a href="{{ route('user.hasil.index') }}" class="nav-item {{ false ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-clock"></i> Riwayat</div>
+        <a href="{{ route('user.profil') }}"
+           class="sb-item {{ request()->routeIs('user.profil') ? 'active' : '' }}">
+            <i class="fas fa-user-circle"></i> Profil
         </a>
-        <a href="{{ route('user.hasil.index') }}" class="nav-item {{ false ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-chart-line"></i> Grafik</div>
-        </a>
-
-        <div class="sb-section">Akun</div>
-        <a href="{{ route('user.profil') }}" class="nav-item {{ request()->routeIs('user.profil*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-user-circle"></i> Lengkapi Data</div>
-            <i class="fas fa-chevron-right nav-chevron"></i>
-        </a>
-        @php
-            $unread = auth()->check()
-                ? \App\Models\Notifikasi::where('user_id',auth()->id())->where('is_read',0)->count()
-                : 0;
-        @endphp
-        <a href="{{ route('user.notifikasi') }}" class="nav-item {{ request()->routeIs('user.notifikasi*') ? 'active':'' }}">
-            <div class="nav-item-left"><i class="fas fa-bell"></i> Jadwal</div>
-            @if($unread > 0)<span class="nav-badge">{{ $unread }}</span>@endif
-        </a>
-    </nav>
-
-    <div class="sb-footer">
-        <form action="/logout" method="POST">
+        <form action="{{ route('logout') }}" method="POST">
             @csrf
-            <button type="submit" class="btn-logout">
-                <i class="fas fa-power-off"></i> Logout
+            <button type="submit" class="sb-item" style="color:rgba(255,255,255,.45)">
+                <i class="fas fa-sign-out-alt"></i> Keluar
             </button>
         </form>
+    </nav>
+
+    <!-- Promo card -->
+    <div class="sb-promo">
+        <img src="{{ asset('images/hero-vector_2.png') }}"
+             alt="Ilustrasi" class="sb-promo-img">
+        <p class="sb-promo-text">Ayo tingkatkan<br>skor TOEFL kamu!</p>
+        <a href="{{ route('user.tes.simulasi') }}" class="sb-promo-btn">
+           Ayo Daftar Tes →
+        </a>
+    </div>
+
+    <div class="sb-foot">
+        <div class="sb-user">
+            <div class="sb-av">{{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}</div>
+            <div style="flex:1;min-width:0">
+                <div class="sb-uname">{{ auth()->user()->name ?? 'User' }}</div>
+                <div class="sb-urole">{{ auth()->user()->is_active ? '✓ Terverifikasi' : 'Belum Aktif' }}</div>
+            </div>
+        </div>
     </div>
 </aside>
 
-{{-- MAIN --}}
+<!-- ════════════════ MAIN ════════════════ -->
 <div class="main-wrap">
+
+    <!-- TOPBAR -->
     <header class="topbar">
-        <div>
-            <div class="topbar-title">@yield('page-title','Dashboard')</div>
-            <div class="topbar-bread">@yield('breadcrumb','Home / Dashboard')</div>
+        <div class="topbar-left">
+            <button class="mob-toggle" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
+            <div>
+                <div class="tb-title">@yield('page-title', 'Dashboard')</div>
+                <div class="tb-sub">@yield('breadcrumb', 'Home / Dashboard')</div>
+            </div>
         </div>
         <div class="topbar-right">
-            @php $__unreadCount = auth()->check() ? auth()->user()->notifikasiUnread()->count() : 0; @endphp
-            <a href="{{ route('user.notifikasi') }}" class="notif-btn" style="position:relative" title="Notifikasi">
-                <i class="fas fa-bell" style="font-size:14px"></i>
-                @if($__unreadCount > 0)
-                <span style="position:absolute;top:-4px;right:-4px;
-                    background:#dc2626;color:#fff;border-radius:50%;
-                    min-width:16px;height:16px;font-size:9px;font-weight:700;
-                    display:flex;align-items:center;justify-content:center;
-                    padding:0 3px;border:1.5px solid #fff;line-height:1">
-                    {{ $__unreadCount > 9 ? '9+' : $__unreadCount }}
-                </span>
-                @endif
+            <a href="{{ route('user.notifikasi') }}" class="tb-btn">
+                <i class="fas fa-bell"></i>
+                @if(($unreadCount ?? 0) > 0)<span class="tb-dot"></span>@endif
             </a>
-            <a href="{{ route('user.profil') }}" style="width:38px;height:38px;border-radius:50%;
-                background:linear-gradient(135deg,var(--blue),var(--blue-dark));
-                display:flex;align-items:center;justify-content:center;
-                color:#fff;font-weight:700;font-size:14px;text-decoration:none">
-                {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+            <a href="{{ route('user.profil') }}" class="tb-user">
+                <div class="tb-user-av">{{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}</div>
+                <span class="tb-user-name">{{ explode(' ', auth()->user()->name ?? 'User')[0] }}</span>
+                <i class="fas fa-chevron-down" style="font-size:9px;color:var(--muted-lt);margin-left:2px"></i>
             </a>
         </div>
     </header>
 
-    <main class="content">
+    <!-- CONTENT -->
+    <main class="content-area">
         @if(session('success'))
-        <div class="alert alert-success"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <div>{{ session('success') }}</div>
+        </div>
         @endif
         @if(session('error'))
-        <div class="alert alert-danger"><i class="fas fa-times-circle"></i> {{ session('error') }}</div>
+        <div class="alert alert-danger">
+            <i class="fas fa-times-circle"></i>
+            <div>{{ session('error') }}</div>
+        </div>
         @endif
         @if($errors->any())
         <div class="alert alert-danger">
             <i class="fas fa-exclamation-circle"></i>
-            <div>@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
+            <div>
+                <strong>Ada kesalahan input:</strong>
+                <ul style="margin-top:4px;padding-left:16px">
+                    @foreach($errors->all() as $e)
+                    <li style="font-size:13px">{{ $e }}</li>
+                    @endforeach
+                </ul>
+            </div>
         </div>
         @endif
+
         @yield('content')
     </main>
 </div>
 
-<script src="{{ asset('js/audio-player.js') }}"></script>
+<script>
+function openSidebar()  {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sbOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sbOverlay').classList.remove('open');
+}
+</script>
 @stack('scripts')
-@include('partials.firebase-push')
 </body>
 </html>

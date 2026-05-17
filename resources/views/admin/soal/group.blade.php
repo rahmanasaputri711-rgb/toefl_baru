@@ -39,7 +39,8 @@
 <div class="grp-grid">
 
     {{-- GROUP READING --}}
-    <div class="grp-card" style="border-color:rgba(59,130,246,.3)">
+    <div class="grp-card" style="border-color:rgba(59,130,246,.3);cursor:pointer"
+        onclick="window.location='{{ route('admin.soal.group.reading') }}'">
         <div class="grp-ico" style="background:rgba(59,130,246,.12)">📖</div>
         <div>
             <div class="grp-title">Group Reading</div>
@@ -51,9 +52,9 @@
             <div class="grp-item"><i class="fas fa-envelope" style="color:#f59e0b"></i> Gambar / Email</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-            <a href="{{ route('admin.passage.index') }}" class="grp-btn"
+            <a href="{{ route('admin.soal.group.reading') }}" class="grp-btn"
                 style="border-color:rgba(59,130,246,.4);color:#3b82f6">
-                <i class="fas fa-book-open"></i> Kelola Passage
+                <i class="fas fa-book-open"></i> Buka Group Reading
             </a>
             <a href="{{ route('admin.passage.create') }}" class="grp-btn"
                 style="border-color:var(--border);color:var(--muted)">
@@ -63,7 +64,8 @@
     </div>
 
     {{-- GROUP LISTENING --}}
-    <div class="grp-card" style="border-color:rgba(234,88,12,.3)">
+    <div class="grp-card" style="border-color:rgba(234,88,12,.3);cursor:pointer"
+        onclick="window.location='{{ route('admin.soal.group.listening') }}'">
         <div class="grp-ico" style="background:rgba(234,88,12,.12)">🎧</div>
         <div>
             <div class="grp-title">Group Listening</div>
@@ -75,9 +77,9 @@
             <div class="grp-item"><i class="fas fa-random" style="color:#fb923c"></i> Fisher-Yates: pilihan diacak</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-            <a href="{{ route('admin.listening.index') }}" class="grp-btn"
+            <a href="{{ route('admin.soal.group.listening') }}" class="grp-btn"
                 style="border-color:rgba(234,88,12,.4);color:#fb923c">
-                <i class="fas fa-headphones"></i> Kelola Listening
+                <i class="fas fa-headphones"></i> Buka Group Listening
             </a>
             <a href="{{ route('admin.listening.create') }}" class="grp-btn"
                 style="border-color:var(--border);color:var(--muted)">
@@ -87,7 +89,8 @@
     </div>
 
     {{-- GROUP STRUCTURE --}}
-    <div class="grp-card" style="border-color:rgba(245,158,11,.3)">
+    <div class="grp-card" style="border-color:rgba(245,158,11,.3);cursor:pointer"
+        onclick="window.location='{{ route('admin.soal.group.structure') }}'">
         <div class="grp-ico" style="background:rgba(245,158,11,.12)">✏️</div>
         <div>
             <div class="grp-title">Group Structure</div>
@@ -99,9 +102,9 @@
             <div class="grp-item"><i class="fas fa-random" style="color:#f59e0b"></i> Fisher-Yates: urutan diacak</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-            <a href="{{ route('admin.soal.create') }}" class="grp-btn"
+            <a href="{{ route('admin.soal.group.structure') }}" class="grp-btn"
                 style="border-color:rgba(245,158,11,.4);color:#f59e0b">
-                <i class="fas fa-plus"></i> Tambah Soal Structure
+                <i class="fas fa-pen"></i> Buka Group Structure
             </a>
         </div>
     </div>

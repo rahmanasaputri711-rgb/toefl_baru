@@ -18,6 +18,9 @@ class ModulSoal extends Model
         'passage'         => ['label'=>'📄 Passage',        'color'=>'#3b82f6', 'grup'=>'reading'],
         'missing_letters' => ['label'=>'🔤 Missing Letters','color'=>'#10b981', 'grup'=>'reading'],
         'image_email'     => ['label'=>'📧 Gambar / Email', 'color'=>'#f59e0b', 'grup'=>'reading'],
+        // Structure
+        'best_response'   => ['label'=>'💬 Best Response',   'color'=>'#8b5cf6', 'grup'=>'structure'],
+        'arrange_sentence'=> ['label'=>'🔀 Arrange Sentence','color'=>'#ec4899', 'grup'=>'structure'],
         // Listening — semua pakai 1 audio full, modul hanya untuk pengelompokan admin
         'conversation'    => ['label'=>'💬 Conversation',   'color'=>'#fb923c', 'grup'=>'listening'],
         'lecture'         => ['label'=>'🎓 Lecture',        'color'=>'#f97316', 'grup'=>'listening'],
@@ -25,7 +28,12 @@ class ModulSoal extends Model
         'short_talk'      => ['label'=>'⚡ Short Talk',     'color'=>'#dc2626', 'grup'=>'listening'],
     ];
 
-    public const TIPE_LISTENING = ['conversation','lecture','discussion','short_talk'];
+    public const TIPE_LISTENING  = ['conversation','lecture','discussion','short_talk'];
+    public const TIPE_STRUCTURE  = ['best_response','arrange_sentence'];
+
+    public function isStructure(): bool {
+        return in_array($this->tipe_modul, self::TIPE_STRUCTURE);
+    }
 
     // ── Helper ────────────────────────────────────────────────────
     public function isListening(): bool {
@@ -35,7 +43,7 @@ class ModulSoal extends Model
     public function getRentangAttribute(): string {
         $a = $this->nomor_soal_mulai;
         $b = $this->nomor_soal_selesai;
-        return $a === $b ? "No.$a" : "No.$a–$b";
+        return $a === $b ? "No.{$a}" : "No.{$a}-{$b}";
     }
 
     public function getJumlahTargetAttribute(): int {
